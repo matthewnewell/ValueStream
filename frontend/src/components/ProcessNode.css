@@ -1,0 +1,117 @@
+.process-node {
+  position: relative;
+  width: 190px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 10px 12px 8px;
+  font-size: 13px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.process-node--selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.process-node--critical {
+  border-color: var(--color-wait);
+}
+
+.process-node--critical::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-wait);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.process-node--bottleneck {
+  border-color: var(--color-critical);
+  box-shadow: 0 0 0 3px var(--color-critical-soft);
+}
+
+.process-node--disconnected {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.process-node__flag {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  font-size: 18px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.process-node__name {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 6px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.process-node__bar-track {
+  height: 3px;
+  background: var(--color-surface-sunken);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.process-node__bar-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+}
+
+.process-node--bottleneck .process-node__bar-fill {
+  background: var(--color-critical);
+}
+
+.process-node__databox {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+}
+
+.process-node__stat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 2px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  border-right: 1px solid var(--color-border);
+}
+
+.process-node__stat:last-child {
+  border-right: none;
+}
+
+.process-node__stat--total {
+  font-weight: 700;
+  background: var(--color-surface);
+}
+
+.process-node__stat-label {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.process-node__meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--color-text-faint);
+}

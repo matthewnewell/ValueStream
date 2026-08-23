@@ -1,0 +1,75 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useCreateMap, useDeleteMap, useDuplicateMap, useMaps } from '../api/hooks'
+import './MapListPage.css'
+
+export default function MapListPage() {
+  const { data: maps, isLoading } = useMaps()
+  const createMap = useCreateMap()
+  const deleteMap = useDeleteMap()
+  const duplicateMap = useDuplicateMap()
+  const navigate = useNavigate()
+  const [newName, setNewName] = useState('')
+
+  function handleCreate() {
+    const name = newName.trim() || 'Untitled value stream'
+    createMap.mutate(
+      { name },
+      { onSuccess: (map) => navigate(`/maps/${map.id}`) },
+    )
+    setNewName('')
+  }
+
+  function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return
+    deleteMap.mutate(id)
+  }
+
+  return (
+    <div className="map-list-page">
+      <header className="map-list-page__header">
+        <div>
+          <h1>Value Stream</h1>
+          <p>Visual value stream maps — find your bottlenecks.</p>
+        </div>
+      </header>
+
+      <div className="map-list-page__create">
+        <input
+          placeholder="New value stream name…"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+        />
+        <button onClick={handleCreate} disabled={createMap.isPending}>
+          + New map
+        </button>
+      </div>
+
+      {isLoading && <div className="map-list-page__loading">Loading maps…</div>}
+
+      <div className="map-list-page__grid">
+        {maps?.map((m) => (
+          <div key={m.id} className="map-card" onClick={() => navigate(`/maps/${m.id}`)}>
+            <div className="map-card__name">{m.name}</div>
+            {m.description && <div className="map-card__desc">{m.description}</div>}
+            <div className="map-card__meta">
+              <span>{m.step_count} step{m.step_count !== 1 ? 's' : ''}</span>
+              <span>Updated {new Date(m.updated_at).toLocaleDateString()}</span>
+            </div>
+            <div className="map-card__actions" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => duplicateMap.mutate(m.id)}>Duplicate</button>
+              <button className="map-card__delete" onClick={() => handleDelete(m.id, m.name)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {maps?.length === 0 && !isLoading && (
+        <div className="map-list-page__empty">No value stream maps yet — create one above.</div>
+      )}
+    </div>
+  )
+}

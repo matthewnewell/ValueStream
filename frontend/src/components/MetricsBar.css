@@ -1,0 +1,66 @@
+.metrics-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.metrics-bar--loading {
+  color: var(--color-text-faint);
+  font-size: 13px;
+}
+
+.metrics-bar__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metrics-bar__stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+}
+
+.metrics-bar__stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-bar__stat-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.metrics-bar__stat--bottleneck .metrics-bar__stat-value {
+  color: var(--color-critical);
+}
+
+.metrics-bar__divider {
+  width: 1px;
+  height: 28px;
+  background: var(--color-border);
+}
+
+.metrics-bar__warnings {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.metrics-bar__warning {
+  font-size: 12px;
+  color: var(--color-wait);
+  background: var(--color-wait-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
