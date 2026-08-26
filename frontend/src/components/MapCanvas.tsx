@@ -8,6 +8,7 @@ import {
   useEdgesState,
   useNodesState,
   type Connection,
+  type EdgeMouseHandler,
   type NodeMouseHandler,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -28,6 +29,8 @@ interface MapCanvasProps {
   metrics: MapMetrics | undefined
   selectedStepId: string | null
   onSelectStep: (stepId: string | null) => void
+  selectedEdgeId: string | null
+  onSelectEdge: (edgeId: string | null) => void
   /** Navigate into a step's sub-process (creating one first if it doesn't have one yet). */
   onExpandStep: (stepId: string) => void
 }
@@ -80,6 +83,8 @@ function MapCanvasInner({
   metrics,
   selectedStepId,
   onSelectStep,
+  selectedEdgeId,
+  onSelectEdge,
   onExpandStep,
 }: MapCanvasProps) {
   const initialNodes = useMemo(() => toFlowNodes(map, metrics), [map, metrics])
@@ -138,7 +143,13 @@ function MapCanvasInner({
   }
 
   const handleNodeClick: NodeMouseHandler = (_, node) => {
+    onSelectEdge(null)
     onSelectStep(node.id)
+  }
+
+  const handleEdgeClick: EdgeMouseHandler = (_, edge) => {
+    onSelectStep(null)
+    onSelectEdge(edge.id)
   }
 
   const renderedNodes = nodes.map((n) => ({
@@ -147,10 +158,12 @@ function MapCanvasInner({
     data: { ...n.data, onExpand: onExpandStep },
   }))
 
+  const renderedEdges = edges.map((e) => ({ ...e, selected: e.id === selectedEdgeId }))
+
   return (
     <ReactFlow
       nodes={renderedNodes}
-      edges={edges}
+      edges={renderedEdges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
@@ -158,7 +171,11 @@ function MapCanvasInner({
       onNodeDragStop={handleNodeDragStop}
       onConnect={handleConnect}
       onNodeClick={handleNodeClick}
-      onPaneClick={() => onSelectStep(null)}
+      onEdgeClick={handleEdgeClick}
+      onPaneClick={() => {
+        onSelectStep(null)
+        onSelectEdge(null)
+      }}
       fitView
       minZoom={0.2}
       maxZoom={2}

@@ -1,0 +1,124 @@
+.edge-drawer {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.edge-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.edge-drawer__title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.edge-drawer__arrow {
+  color: var(--color-text-faint);
+  font-weight: 400;
+}
+
+.edge-drawer__close {
+  border: none;
+  background: transparent;
+  color: var(--color-text-faint);
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.edge-drawer__close:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+.edge-drawer__section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edge-drawer__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.edge-drawer__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edge-drawer__field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.edge-drawer__label-input {
+  padding: 7px 9px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13px;
+}
+
+.edge-drawer__footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.edge-drawer__delete-btn {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-critical);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.edge-drawer__delete-btn:hover {
+  background: var(--color-critical-soft);
+}
+
+.edge-drawer__save-btn {
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.edge-drawer__save-btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.edge-drawer__save-btn:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-faint);
+  cursor: default;
+}

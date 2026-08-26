@@ -17,3 +17,9 @@
   color: var(--color-wait);
   background: var(--color-wait-soft);
 }
+
+.wait-edge__label--selected {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
