@@ -115,23 +115,35 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
   return (
     <aside className="step-drawer">
       <div className="step-drawer__header">
-        <input
-          className="step-drawer__name-input"
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-        />
+        <div className="step-drawer__name-field">
+          <label className="step-drawer__field-label" htmlFor="step-drawer-name">
+            Name
+          </label>
+          <input
+            id="step-drawer-name"
+            className="step-drawer__name-input"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          />
+        </div>
         <button className="step-drawer__close" onClick={onClose} aria-label="Close">
           ✕
         </button>
       </div>
 
-      <textarea
-        className="step-drawer__description"
-        placeholder="Describe this step (used as context for AI suggestions)…"
-        value={form.description}
-        onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-        rows={2}
-      />
+      <div className="step-drawer__field">
+        <label className="step-drawer__field-label" htmlFor="step-drawer-description">
+          Description
+        </label>
+        <textarea
+          id="step-drawer-description"
+          className="step-drawer__description"
+          placeholder="Describe this step (used as context for AI suggestions)…"
+          value={form.description}
+          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          rows={2}
+        />
+      </div>
 
       {hasChildMap ? (
         <div className="step-drawer__section">
