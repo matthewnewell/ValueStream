@@ -36,7 +36,7 @@ export default function ProcessNode({ data, selected }: NodeProps<ProcessNodeTyp
   if (hasChildMap) classes.push('process-node--expandable')
 
   return (
-    <div className={classes.join(' ')} onDoubleClick={() => onExpand(step.id)}>
+    <div className={classes.join(' ')}>
       <Handle type="target" position={Position.Left} />
 
       {isBottleneck && <div className="process-node__flag" title="Throughput bottleneck">🔥</div>}
