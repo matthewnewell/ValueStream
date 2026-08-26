@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
-import type { Step } from '../api/types'
-import { useAiSuggestStep, useDeleteStep, useUpdateStep } from '../api/hooks'
+import type { Step, StepMetric } from '../api/types'
+import { useAiSuggestStep, useCollapseStep, useDeleteStep, useUpdateStep } from '../api/hooks'
+import { formatDuration } from '../lib/duration'
 import DurationInput from './DurationInput'
 import './StepDrawer.css'
 
 interface StepDrawerProps {
   mapId: string
   step: Step
+  metric: StepMetric | undefined
   onClose: () => void
+  /** Open (or create-then-open) this step's sub-process map. */
+  onExpand: () => void
 }
 
 interface FormState {
@@ -32,14 +36,17 @@ function toForm(step: Step): FormState {
   }
 }
 
-export default function StepDrawer({ mapId, step, onClose }: StepDrawerProps) {
+export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: StepDrawerProps) {
   const [form, setForm] = useState<FormState>(() => toForm(step))
   const [aiRationale, setAiRationale] = useState<string | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
 
   const updateStep = useUpdateStep(mapId)
   const deleteStep = useDeleteStep(mapId)
+  const collapseStep = useCollapseStep(mapId)
   const aiSuggest = useAiSuggestStep()
+
+  const hasChildMap = !!step.child_map_id
 
   // Explicit Save, not autosave-on-type: deliberate, to avoid a race between the operator
   // typing and an AI suggestion resolving into the same fields mid-edit. Reset the form
@@ -70,6 +77,16 @@ export default function StepDrawer({ mapId, step, onClose }: StepDrawerProps) {
   function handleDelete() {
     if (!confirm(`Delete "${step.name}"? This also removes any connectors touching it.`)) return
     deleteStep.mutate(step.id, { onSuccess: onClose })
+  }
+
+  function handleCollapse() {
+    if (
+      !confirm(
+        `Collapse "${step.name}"? This permanently deletes its entire sub-process (${metric?.child_step_count ?? '?'} steps) — not just the link to it.`,
+      )
+    )
+      return
+    collapseStep.mutate(step.id)
   }
 
   function handleAiSuggest() {
@@ -116,41 +133,83 @@ export default function StepDrawer({ mapId, step, onClose }: StepDrawerProps) {
         rows={2}
       />
 
-      <div className="step-drawer__section">
-        <div className="step-drawer__section-header">
-          <span>Processing time</span>
-          <button
-            className="step-drawer__ai-btn"
-            onClick={handleAiSuggest}
-            disabled={aiSuggest.isPending}
-          >
-            {aiSuggest.isPending ? 'Thinking…' : '✨ AI Suggest'}
+      {hasChildMap ? (
+        <div className="step-drawer__section">
+          <div className="step-drawer__section-header">
+            <span>Processing time</span>
+          </div>
+          <div className="step-drawer__rollup-note">
+            This step is expanded into a {metric?.child_step_count ?? '?'}-step sub-process —
+            these numbers are rolled up from it, not editable here.
+          </div>
+          <div className="step-drawer__rollup">
+            <div className="step-drawer__rollup-row">
+              <span>👤 Human</span>
+              <strong>{formatDuration(metric?.effective_human_sec)}</strong>
+            </div>
+            <div className="step-drawer__rollup-row">
+              <span>⚙️ Machine</span>
+              <strong>{formatDuration(metric?.effective_machine_sec)}</strong>
+            </div>
+            <div className="step-drawer__rollup-row">
+              <span>⏳ Wait (inside sub-process)</span>
+              <strong>{formatDuration(metric?.effective_wait_sec)}</strong>
+            </div>
+            <div className="step-drawer__rollup-row step-drawer__rollup-row--total">
+              <span>Total</span>
+              <strong>{formatDuration(metric?.effective_processing_sec)}</strong>
+            </div>
+          </div>
+          <div className="step-drawer__row">
+            <button className="step-drawer__open-btn" onClick={onExpand}>
+              Open sub-process →
+            </button>
+            <button className="step-drawer__collapse-btn" onClick={handleCollapse}>
+              Collapse
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="step-drawer__section">
+          <div className="step-drawer__section-header">
+            <span>Processing time</span>
+            <button
+              className="step-drawer__ai-btn"
+              onClick={handleAiSuggest}
+              disabled={aiSuggest.isPending}
+            >
+              {aiSuggest.isPending ? 'Thinking…' : '✨ AI Suggest'}
+            </button>
+          </div>
+
+          {aiError && <div className="step-drawer__ai-error">{aiError}</div>}
+          {aiRationale && (
+            <div className="step-drawer__ai-rationale">
+              <strong>AI suggestion applied (not yet saved):</strong> {aiRationale}
+            </div>
+          )}
+
+          <div className="step-drawer__row">
+            <DurationInput
+              label="Human"
+              seconds={form.human_time_sec}
+              onChange={(s) => setForm((f) => ({ ...f, human_time_sec: s }))}
+            />
+            <DurationInput
+              label="Machine"
+              seconds={form.machine_time_sec}
+              onChange={(s) => setForm((f) => ({ ...f, machine_time_sec: s }))}
+            />
+          </div>
+          <div className="step-drawer__total">
+            Total processing time: <strong>{formatTotal(processingTime)}</strong>
+          </div>
+
+          <button className="step-drawer__expand-btn" onClick={onExpand}>
+            ⤵ Expand into sub-process
           </button>
         </div>
-
-        {aiError && <div className="step-drawer__ai-error">{aiError}</div>}
-        {aiRationale && (
-          <div className="step-drawer__ai-rationale">
-            <strong>AI suggestion applied (not yet saved):</strong> {aiRationale}
-          </div>
-        )}
-
-        <div className="step-drawer__row">
-          <DurationInput
-            label="Human"
-            seconds={form.human_time_sec}
-            onChange={(s) => setForm((f) => ({ ...f, human_time_sec: s }))}
-          />
-          <DurationInput
-            label="Machine"
-            seconds={form.machine_time_sec}
-            onChange={(s) => setForm((f) => ({ ...f, machine_time_sec: s }))}
-          />
-        </div>
-        <div className="step-drawer__total">
-          Total processing time: <strong>{formatTotal(processingTime)}</strong>
-        </div>
-      </div>
+      )}
 
       <div className="step-drawer__section">
         <div className="step-drawer__section-header">

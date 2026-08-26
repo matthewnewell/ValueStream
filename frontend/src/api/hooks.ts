@@ -4,6 +4,7 @@ import type {
   AiInsightsResult,
   AiSuggestResult,
   Edge,
+  MapBreadcrumbEntry,
   MapDetail,
   MapMetrics,
   MapSummary,
@@ -31,6 +32,14 @@ export function useMapMetrics(mapId: string | undefined) {
   return useQuery({
     queryKey: ['maps', mapId, 'metrics'],
     queryFn: () => api.get<MapMetrics>(`/maps/${mapId}/metrics`),
+    enabled: !!mapId,
+  })
+}
+
+export function useMapBreadcrumb(mapId: string | undefined) {
+  return useQuery({
+    queryKey: ['maps', mapId, 'breadcrumb'],
+    queryFn: () => api.get<MapBreadcrumbEntry[]>(`/maps/${mapId}/breadcrumb`),
     enabled: !!mapId,
   })
 }
@@ -102,6 +111,22 @@ export function useDeleteStep(mapId: string) {
   const invalidate = useInvalidateMap(mapId)
   return useMutation({
     mutationFn: (stepId: string) => api.del<void>(`/steps/${stepId}`),
+    onSuccess: invalidate,
+  })
+}
+
+export function useExpandStep(mapId: string) {
+  const invalidate = useInvalidateMap(mapId)
+  return useMutation({
+    mutationFn: (stepId: string) => api.post<MapDetail>(`/steps/${stepId}/expand`),
+    onSuccess: invalidate,
+  })
+}
+
+export function useCollapseStep(mapId: string) {
+  const invalidate = useInvalidateMap(mapId)
+  return useMutation({
+    mutationFn: (stepId: string) => api.del<void>(`/steps/${stepId}/child-map`),
     onSuccess: invalidate,
   })
 }

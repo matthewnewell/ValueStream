@@ -64,6 +64,46 @@ def delete_step(step_id):
     Edge.query.filter(
         (Edge.source_step_id == step_id) | (Edge.target_step_id == step_id)
     ).delete(synchronize_session=False)
+    # If this step owned a child map (a nested sub-process), that map is not cascade-deleted —
+    # same "no silent deep destruction" reasoning as DELETE /api/maps/<id>. It becomes
+    # ownerless and resurfaces in the top-level map list instead of vanishing outright.
     db.session.delete(step)
+    db.session.commit()
+    return "", 204
+
+
+@bp.post("/api/steps/<step_id>/expand")
+def expand_step(step_id):
+    """Create a fresh, empty child map and link this step to it — "explode Design into its
+    own Requirements Analysis -> Trade Study -> ... sub-process". Returns the new map so the
+    frontend can navigate straight into it."""
+    step = Step.query.get_or_404(step_id)
+    if step.child_map_id:
+        return jsonify({"error": "this step already has a sub-process — open it instead of expanding again"}), 400
+
+    child_map = Map(
+        name=f"{step.name} — sub-process",
+        description=f'Sub-process for "{step.name}" in {step.map.name}.',
+    )
+    db.session.add(child_map)
+    db.session.flush()  # assign child_map.id before linking
+
+    step.child_map_id = child_map.id
+    db.session.commit()
+    return jsonify(child_map.to_dict()), 201
+
+
+@bp.delete("/api/steps/<step_id>/child-map")
+def collapse_step(step_id):
+    """Delete this step's child map (and everything in it) and unlink it, turning the step
+    back into a plain leaf. Destructive — the frontend confirms before calling this."""
+    step = Step.query.get_or_404(step_id)
+    if not step.child_map_id:
+        return jsonify({"error": "this step has no sub-process to collapse"}), 400
+
+    child_map = Map.query.get(step.child_map_id)
+    step.child_map_id = None  # explicit, rather than relying solely on ON DELETE SET NULL
+    if child_map is not None:
+        db.session.delete(child_map)  # cascades to the child map's own steps + edges
     db.session.commit()
     return "", 204

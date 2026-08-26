@@ -48,18 +48,27 @@ export default function MetricsBar({ metrics, isLoading }: MetricsBarProps) {
       <div className="metrics-bar__stat metrics-bar__stat--bottleneck">
         <span className="metrics-bar__stat-label">Bottleneck</span>
         <span className="metrics-bar__stat-value">
-          {metrics.bottleneck ? (
+          {metrics.deepest_bottleneck ? (
             <>
-              🔥 {metrics.bottleneck.name}{' '}
+              🔥 {metrics.deepest_bottleneck.name}{' '}
               <span className="metrics-bar__stat-sub">
-                ({formatDuration(metrics.bottleneck.processing_time_sec)}
-                {!metrics.bottleneck.on_critical_path && ', off critical path'})
+                ({formatDuration(metrics.deepest_bottleneck.processing_time_sec)}
+                {!metrics.deepest_bottleneck.on_critical_path && ', off critical path'})
               </span>
             </>
           ) : (
             '—'
           )}
         </span>
+        {metrics.deepest_bottleneck && metrics.deepest_bottleneck.breadcrumb.length > 1 && (
+          <span className="metrics-bar__stat-path">
+            inside{' '}
+            {metrics.deepest_bottleneck.breadcrumb
+              .slice(0, -1)
+              .map((h) => h.step_name)
+              .join(' › ')}
+          </span>
+        )}
       </div>
 
       {warnings.length > 0 && (

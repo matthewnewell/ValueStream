@@ -181,3 +181,70 @@ def test_top_wait_contributors_sorted_and_zero_wait_excluded():
     m = compute_metrics(steps, edges)
     assert len(m["top_wait_contributors"]) == 1
     assert m["top_wait_contributors"][0]["edge_id"] == "e2"
+
+
+# ── Nested value streams (child_map_metrics rollup) ─────────────────────────────────────────
+
+
+def test_step_with_child_map_uses_rolled_up_weight_not_own_fields():
+    # A(1) -> Design -> C(1). Design's own human/machine fields are stale/irrelevant (10000s)
+    # because it owns a child map whose own CPM lead time is only 500s — the rollup value must
+    # win, not the step's raw fields.
+    steps = [
+        step("A", "A", human=1),
+        step("Design", "Design", human=10000, machine=10000),
+        step("C", "C", human=1),
+    ]
+    edges = [edge("e1", "A", "Design"), edge("e2", "Design", "C")]
+    child_map_metrics = {
+        "Design": {
+            "lead_time_sec": 500,
+            "total_human_time_sec": 50,
+            "total_machine_time_sec": 20,
+            "step_count": 6,
+        },
+    }
+    m = compute_metrics(steps, edges, child_map_metrics=child_map_metrics)
+
+    assert m["lead_time_sec"] == 502  # 1 + 500 + 1, not 1 + 20000 + 1
+    sm = m["step_metrics"]["Design"]
+    assert sm["has_child_map"] is True
+    assert sm["child_step_count"] == 6
+    assert sm["effective_processing_sec"] == 500
+    assert sm["effective_human_sec"] == 50
+    assert sm["effective_machine_sec"] == 20
+    # 500 - 50 - 20 = 430s of rolled-up wait time (e.g. a CCB/approval cycle inside Design)
+    assert sm["effective_wait_sec"] == 430
+
+
+def test_bottleneck_can_be_a_step_with_a_child_map():
+    # A plain leaf step (B, 10s) vs. a step with a child map whose rolled-up lead time (500s)
+    # is much larger — the expanded step must win the ToC bottleneck search.
+    steps = [
+        step("A", "A", human=1),
+        step("Design", "Design", human=1),  # own fields are trivial/stale
+        step("B", "B", human=10),
+    ]
+    edges = [edge("e1", "A", "Design"), edge("e2", "A", "B")]
+    child_map_metrics = {
+        "Design": {"lead_time_sec": 500, "total_human_time_sec": 100, "total_machine_time_sec": 0, "step_count": 3},
+    }
+    m = compute_metrics(steps, edges, child_map_metrics=child_map_metrics)
+
+    assert m["bottleneck"]["step_id"] == "Design"
+    assert m["bottleneck"]["processing_time_sec"] == 500
+    assert m["bottleneck"]["has_child_map"] is True
+
+
+def test_leaf_steps_have_no_child_map_rollup():
+    steps = [step("A", "A", human=5, machine=2)]
+    m = compute_metrics(steps, [])
+    sm = m["step_metrics"]["A"]
+    assert sm["has_child_map"] is False
+    assert sm["child_map_id"] is None
+    assert sm["effective_processing_sec"] == 7
+    assert sm["effective_human_sec"] == 5
+    assert sm["effective_machine_sec"] == 2
+    assert sm["effective_wait_sec"] == 0
+    assert m["total_human_time_sec"] == 5
+    assert m["total_machine_time_sec"] == 2

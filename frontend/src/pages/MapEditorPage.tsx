@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useCreateStep, useHealth, useMap, useMapMetrics, useUpdateMap } from '../api/hooks'
+import {
+  useCreateStep,
+  useExpandStep,
+  useHealth,
+  useMap,
+  useMapMetrics,
+  useUpdateMap,
+} from '../api/hooks'
+import Breadcrumb from '../components/Breadcrumb'
 import MapCanvas from '../components/MapCanvas'
 import MetricsBar from '../components/MetricsBar'
 import StepDrawer from '../components/StepDrawer'
@@ -15,6 +23,7 @@ export default function MapEditorPage() {
   const { data: health } = useHealth()
   const updateMap = useUpdateMap(mapId ?? '')
   const createStep = useCreateStep(mapId ?? '')
+  const expandStep = useExpandStep(mapId ?? '')
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [showInsights, setShowInsights] = useState(false)
@@ -33,8 +42,22 @@ export default function MapEditorPage() {
     )
   }
 
+  // Double-click (or the node's ⤵ badge) drills into a step's sub-process — creating one on
+  // the fly if it doesn't have one yet, so "explode this step" is a single action either way.
+  function handleExpandStep(stepId: string) {
+    const step = map!.steps.find((s) => s.id === stepId)
+    if (step?.child_map_id) {
+      navigate(`/maps/${step.child_map_id}`)
+      return
+    }
+    expandStep.mutate(stepId, {
+      onSuccess: (childMap) => navigate(`/maps/${childMap.id}`),
+    })
+  }
+
   return (
     <div className="map-editor-page">
+      <Breadcrumb mapId={mapId} />
       <div className="map-editor-page__toolbar">
         <button className="map-editor-page__back" onClick={() => navigate('/')}>
           ← Maps
@@ -65,11 +88,18 @@ export default function MapEditorPage() {
             metrics={metrics}
             selectedStepId={selectedStepId}
             onSelectStep={setSelectedStepId}
+            onExpandStep={handleExpandStep}
           />
         </div>
 
         {selectedStep && (
-          <StepDrawer mapId={mapId} step={selectedStep} onClose={() => setSelectedStepId(null)} />
+          <StepDrawer
+            mapId={mapId}
+            step={selectedStep}
+            metric={metrics?.step_metrics[selectedStep.id]}
+            onClose={() => setSelectedStepId(null)}
+            onExpand={() => handleExpandStep(selectedStep.id)}
+          />
         )}
 
         {showInsights && (

@@ -28,11 +28,13 @@ interface MapCanvasProps {
   metrics: MapMetrics | undefined
   selectedStepId: string | null
   onSelectStep: (stepId: string | null) => void
+  /** Navigate into a step's sub-process (creating one first if it doesn't have one yet). */
+  onExpandStep: (stepId: string) => void
 }
 
 function toFlowNodes(map: MapDetail, metrics: MapMetrics | undefined): ProcessNodeType[] {
   return map.steps.map((step) => {
-    const sm = metrics?.step_metrics[step.id]
+    const metric = metrics?.step_metrics[step.id]
     return {
       id: step.id,
       type: 'process',
@@ -49,10 +51,10 @@ function toFlowNodes(map: MapDetail, metrics: MapMetrics | undefined): ProcessNo
       measured: { width: 190, height: 112 },
       data: {
         step,
-        isCritical: sm?.is_critical ?? false,
+        metric,
         isBottleneck: metrics?.bottleneck?.step_id === step.id,
         isDisconnected: metrics?.disconnected_step_ids.includes(step.id) ?? false,
-        pctOfLeadTime: sm?.pct_of_lead_time ?? 0,
+        onExpand: () => {}, // replaced below once the real handler is in scope
       },
     }
   })
@@ -72,7 +74,14 @@ function toFlowEdges(map: MapDetail, metrics: MapMetrics | undefined): WaitEdgeT
   }))
 }
 
-function MapCanvasInner({ mapId, map, metrics, selectedStepId, onSelectStep }: MapCanvasProps) {
+function MapCanvasInner({
+  mapId,
+  map,
+  metrics,
+  selectedStepId,
+  onSelectStep,
+  onExpandStep,
+}: MapCanvasProps) {
   const initialNodes = useMemo(() => toFlowNodes(map, metrics), [map, metrics])
   const initialEdges = useMemo(() => toFlowEdges(map, metrics), [map, metrics])
 
@@ -132,11 +141,15 @@ function MapCanvasInner({ mapId, map, metrics, selectedStepId, onSelectStep }: M
     onSelectStep(node.id)
   }
 
-  const nodesWithSelection = nodes.map((n) => ({ ...n, selected: n.id === selectedStepId }))
+  const renderedNodes = nodes.map((n) => ({
+    ...n,
+    selected: n.id === selectedStepId,
+    data: { ...n.data, onExpand: onExpandStep },
+  }))
 
   return (
     <ReactFlow
-      nodes={nodesWithSelection}
+      nodes={renderedNodes}
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}

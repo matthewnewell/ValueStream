@@ -44,6 +44,12 @@
   color: var(--color-critical);
 }
 
+.metrics-bar__stat-path {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
 .metrics-bar__divider {
   width: 1px;
   height: 28px;

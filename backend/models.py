@@ -8,6 +8,13 @@ between two steps, not on the step itself, because a join step can be fed by pat
 genuinely different queue delays (see plan doc for the full rationale).
 
 All durations are stored in seconds. Unit conversion is a frontend-only concern.
+
+Nested value streams: a Step may optionally own a child Map (`child_map_id`) — "Design"
+exploding into its own Requirements Analysis -> Trade Study -> ... sub-map. Ownership is a
+strict tree (one owning step per child map, enforced by construction: child maps are only
+ever created via the /expand route, never linked by hand), not a shared/reusable template —
+see engine.py for how a step-with-a-child-map's effective duration and human/machine/wait
+breakdown are rolled up recursively from that child map's own CPM run.
 """
 
 from datetime import datetime, timezone
@@ -28,8 +35,15 @@ class Map(db.Model):
     created_at = db.Column(db.DateTime, default=_now, nullable=False)
     updated_at = db.Column(db.DateTime, default=_now, onupdate=_now, nullable=False)
 
+    # `Step` now has two FKs pointing at `map.id` (its owning `map_id`, and the optional
+    # `child_map_id` a step uses to point *down* into a sub-process) — foreign_keys must be
+    # explicit here or SQLAlchemy can't tell which one this "owning map" relationship means.
     steps = db.relationship(
-        "Step", backref="map", cascade="all, delete-orphan", lazy="selectin"
+        "Step",
+        foreign_keys="Step.map_id",
+        backref="map",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
     edges = db.relationship(
         "Edge", backref="map", cascade="all, delete-orphan", lazy="selectin"
@@ -72,6 +86,15 @@ class Step(db.Model):
     notes = db.Column(db.Text, nullable=True)
     ai_rationale = db.Column(db.Text, nullable=True)
 
+    # Nullable link to a sub-process map "inside" this step. SET NULL on delete so removing
+    # the child map (the /child-map collapse route) doesn't require deleting the step itself.
+    # Never set directly via PUT /api/steps/<id> — only ever created through /expand, which is
+    # what keeps "one owning step per child map" true without needing a DB-level uniqueness
+    # constraint (SQLite can't add one via ALTER TABLE ADD COLUMN anyway).
+    child_map_id = db.Column(
+        db.String(36), db.ForeignKey("map.id", ondelete="SET NULL"), nullable=True
+    )
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -86,6 +109,7 @@ class Step(db.Model):
             "machines": self.machines,
             "notes": self.notes,
             "ai_rationale": self.ai_rationale,
+            "child_map_id": self.child_map_id,
         }
 
 

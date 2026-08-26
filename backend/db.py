@@ -37,7 +37,7 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 # No Alembic: three fresh tables, no legacy data. Revisit only if a destructive change is ever
 # needed (SQLite's ALTER TABLE can't cleanly rename/drop/retype columns pre-3.35).
 _MIGRATIONS = [
-    # ("step", "notes", "ALTER TABLE step ADD COLUMN notes TEXT"),
+    ("step", "child_map_id", "ALTER TABLE step ADD COLUMN child_map_id VARCHAR(36) REFERENCES map(id)"),
 ]
 
 

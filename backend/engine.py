@@ -20,6 +20,16 @@ Edge cases handled explicitly: cycles (detected and excluded from CPM, reported 
 disconnected components (CPM runs on the largest component; other steps are flagged, not
 silently dropped), single-node maps, multiple sources/sinks, parallel edges between the same
 pair of steps (forward pass takes max over them, matching "wait for the slowest path").
+
+Nested value streams: a step that owns a child map (see models.py's `Step.child_map_id`) gets
+its "weight" (effective processing time) from that child map's own already-computed CPM lead
+time, rather than from its own human_time_sec/machine_time_sec — the caller passes those
+pre-computed child results in via `child_map_metrics`. This is what makes "the bottleneck is
+Trade Study, three levels down inside Design" possible: the child map's wait time (a CCB/
+approval cycle, say) is baked into the number that competes as this step's weight one level up,
+recursively, with no special-casing needed at any single level. compute_metrics() itself does
+not recurse — it only consumes already-computed child results — the route layer owns walking
+the tree (see routes/maps.py's compute_metrics_recursive).
 """
 
 from __future__ import annotations
@@ -107,8 +117,17 @@ def _topo_order(node_ids: set[str], preds: dict[str, list[tuple[str, dict]]]) ->
     return order
 
 
-def _run_cpm(node_ids: set[str], steps_by_id: dict[str, dict], dag_edges: list[dict]) -> dict:
-    """Forward + backward pass over one DAG component. Returns per-node CPM values."""
+def _run_cpm(
+    node_ids: set[str],
+    steps_by_id: dict[str, dict],
+    dag_edges: list[dict],
+    weight_fn,
+) -> dict:
+    """Forward + backward pass over one DAG component. Returns per-node CPM values.
+
+    `weight_fn(step)` supplies each node's duration — plain human+machine time for a leaf
+    step, or a rolled-up child-map lead time for a step that owns a sub-process (see module
+    docstring)."""
     preds: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     succs: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     for e in dag_edges:
@@ -126,7 +145,7 @@ def _run_cpm(node_ids: set[str], steps_by_id: dict[str, dict], dag_edges: list[d
         else:
             es = max(earliest_finish[u] + e["wait_time_sec"] for u, e in incoming)
         earliest_start[v] = es
-        earliest_finish[v] = es + _weight(steps_by_id[v])
+        earliest_finish[v] = es + weight_fn(steps_by_id[v])
 
     lead_time = max(earliest_finish.values()) if earliest_finish else 0.0
 
@@ -139,7 +158,7 @@ def _run_cpm(node_ids: set[str], steps_by_id: dict[str, dict], dag_edges: list[d
         else:
             lf = min(latest_start[w] - e["wait_time_sec"] for w, e in outgoing)
         latest_finish[v] = lf
-        latest_start[v] = lf - _weight(steps_by_id[v])
+        latest_start[v] = lf - weight_fn(steps_by_id[v])
 
     slack = {v: max(0.0, latest_start[v] - earliest_start[v]) for v in node_ids}
 
@@ -191,14 +210,34 @@ def _representative_critical_path(
     return path
 
 
-def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
+def compute_metrics(
+    steps: list[dict],
+    edges: list[dict],
+    child_map_metrics: dict[str, dict] | None = None,
+) -> dict:
     """
     steps: list of dicts with at least {id, name, human_time_sec, machine_time_sec}
     edges: list of dicts with at least
            {id, source_step_id, target_step_id, wait_time_sec, kind, label}
+    child_map_metrics: optional {step_id: {lead_time_sec, total_human_time_sec,
+           total_machine_time_sec, step_count}} for any step that owns a child map — the
+           caller (routes/maps.py) computes these recursively, bottom-up, before calling in.
     """
+    child_map_metrics = child_map_metrics or {}
     steps_by_id = {s["id"]: s for s in steps}
     all_ids = set(steps_by_id.keys())
+
+    def weight(step: dict) -> float:
+        child = child_map_metrics.get(step["id"])
+        return child["lead_time_sec"] if child else _weight(step)
+
+    def human_weight(step: dict) -> float:
+        child = child_map_metrics.get(step["id"])
+        return child["total_human_time_sec"] if child else float(step.get("human_time_sec") or 0)
+
+    def machine_weight(step: dict) -> float:
+        child = child_map_metrics.get(step["id"])
+        return child["total_machine_time_sec"] if child else float(step.get("machine_time_sec") or 0)
 
     flow_edges = [e for e in edges if e.get("kind", "flow") == "flow"]
 
@@ -219,7 +258,7 @@ def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
             components,
             key=lambda c: (
                 -len(c),
-                -sum(_weight(steps_by_id[n]) for n in c),
+                -sum(weight(steps_by_id[n]) for n in c),
                 sorted(c),
             ),
         )
@@ -235,7 +274,7 @@ def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
     ]
 
     if main_component:
-        cpm = _run_cpm(main_component, steps_by_id, main_edges)
+        cpm = _run_cpm(main_component, steps_by_id, main_edges, weight)
     else:
         cpm = {
             "earliest_start": {}, "earliest_finish": {}, "latest_start": {},
@@ -258,19 +297,25 @@ def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
     )
 
     rep_path = _representative_critical_path(cpm, main_component)
-    total_processing_time = sum(_weight(steps_by_id[n]) for n in rep_path)
+    total_processing_time = sum(weight(steps_by_id[n]) for n in rep_path)
+    total_human_time = sum(human_weight(steps_by_id[n]) for n in rep_path)
+    total_machine_time = sum(machine_weight(steps_by_id[n]) for n in rep_path)
     pce = (total_processing_time / lead_time * 100.0) if lead_time > _EPS else 0.0
 
     # Theory-of-Constraints bottleneck: highest-weight step across the WHOLE map, independent
-    # of critical path / component membership.
+    # of critical path / component membership. A step that owns a child map competes here using
+    # its rolled-up lead time — a 3-week "Design" can absolutely be the real bottleneck, and if
+    # it's picked, the route layer drills into it to report which step *inside* Design is truly
+    # the deepest bottleneck (see routes/maps.py).
     bottleneck = None
     if steps:
-        bottleneck_step = max(steps, key=lambda s: (_weight(s), s["id"]))
+        bottleneck_step = max(steps, key=lambda s: (weight(s), s["id"]))
         bottleneck = {
             "step_id": bottleneck_step["id"],
             "name": bottleneck_step["name"],
-            "processing_time_sec": _weight(bottleneck_step),
+            "processing_time_sec": weight(bottleneck_step),
             "on_critical_path": bottleneck_step["id"] in critical_step_ids,
+            "has_child_map": bottleneck_step["id"] in child_map_metrics,
         }
 
     top_wait = sorted(flow_edges, key=lambda e: -(e.get("wait_time_sec") or 0))[
@@ -289,6 +334,23 @@ def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
         if (e.get("wait_time_sec") or 0) > 0
     ]
 
+    def rollup_fields(n: str) -> dict:
+        child = child_map_metrics.get(n)
+        eff_processing = weight(steps_by_id[n])
+        eff_human = human_weight(steps_by_id[n])
+        eff_machine = machine_weight(steps_by_id[n])
+        return {
+            "has_child_map": child is not None,
+            "child_map_id": steps_by_id[n].get("child_map_id"),
+            "child_step_count": child["step_count"] if child else None,
+            "effective_processing_sec": eff_processing,
+            "effective_human_sec": eff_human,
+            "effective_machine_sec": eff_machine,
+            # Wait time rolled up from inside a child map (e.g. a CCB/approval cycle) — 0 for
+            # an ordinary leaf step, since its own wait time lives on its *edges*, not on it.
+            "effective_wait_sec": max(0.0, eff_processing - eff_human - eff_machine),
+        }
+
     step_metrics = {}
     for n in main_component:
         step_metrics[n] = {
@@ -299,8 +361,9 @@ def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
             "slack_sec": cpm["slack"][n],
             "is_critical": cpm["slack"][n] < _EPS,
             "pct_of_lead_time": (
-                (_weight(steps_by_id[n]) / lead_time * 100.0) if lead_time > _EPS else 0.0
+                (weight(steps_by_id[n]) / lead_time * 100.0) if lead_time > _EPS else 0.0
             ),
+            **rollup_fields(n),
         }
     for n in disconnected_ids:
         step_metrics[n] = {
@@ -311,11 +374,14 @@ def compute_metrics(steps: list[dict], edges: list[dict]) -> dict:
             "slack_sec": None,
             "is_critical": False,
             "pct_of_lead_time": 0.0,
+            **rollup_fields(n),
         }
 
     return {
         "lead_time_sec": lead_time,
         "total_processing_time_sec": total_processing_time,
+        "total_human_time_sec": total_human_time,
+        "total_machine_time_sec": total_machine_time,
         "process_cycle_efficiency_pct": pce,
         "bottleneck": bottleneck,
         "critical_step_ids": critical_step_ids,
