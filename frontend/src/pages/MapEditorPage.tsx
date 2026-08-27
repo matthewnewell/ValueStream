@@ -14,6 +14,7 @@ import MetricsBar from '../components/MetricsBar'
 import StepDrawer from '../components/StepDrawer'
 import EdgeDrawer from '../components/EdgeDrawer'
 import InsightsPanel from '../components/InsightsPanel'
+import WaitContributorsPanel from '../components/WaitContributorsPanel'
 import './MapEditorPage.css'
 
 export default function MapEditorPage() {
@@ -29,6 +30,7 @@ export default function MapEditorPage() {
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [showInsights, setShowInsights] = useState(false)
+  const [showWaitPanel, setShowWaitPanel] = useState(false)
 
   if (!mapId) return null
   if (isLoading || !map) return <div className="map-editor-page__loading">Loading map…</div>
@@ -84,11 +86,24 @@ export default function MapEditorPage() {
         <div className="map-editor-page__toolbar-actions">
           <button onClick={handleAddStep}>+ Add step</button>
           <button
+            className={showWaitPanel ? 'map-editor-page__insights-btn--active' : ''}
+            onClick={() => {
+              setShowInsights(false)
+              setShowWaitPanel((v) => !v)
+            }}
+          >
+            ⏳ Wait contributors
+          </button>
+          <button
             className={showInsights ? 'map-editor-page__insights-btn--active' : ''}
-            onClick={() => setShowInsights((v) => !v)}
+            onClick={() => {
+              setShowWaitPanel(false)
+              setShowInsights((v) => !v)
+            }}
           >
             ✨ Analyze bottlenecks
           </button>
+          <button onClick={() => navigate(`/maps/${mapId}/bluf`)}>📋 BLUF</button>
         </div>
       </div>
 
@@ -125,6 +140,14 @@ export default function MapEditorPage() {
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelectedEdgeId(null)}
+          />
+        )}
+
+        {showWaitPanel && (
+          <WaitContributorsPanel
+            contributors={metrics?.wait_contributors ?? []}
+            onClose={() => setShowWaitPanel(false)}
+            onSelectEdge={handleSelectEdge}
           />
         )}
 

@@ -37,7 +37,6 @@ from __future__ import annotations
 from collections import defaultdict
 
 _EPS = 1e-6
-TOP_WAIT_CONTRIBUTORS = 5
 
 
 def _weight(step: dict) -> float:
@@ -177,9 +176,16 @@ def _run_cpm(
 def _representative_critical_path(
     cpm: dict, node_ids: set[str]
 ) -> list[str]:
-    """Deterministic single critical path (for the scalar PCE number), via backtrack through
-    zero-slack nodes. The *set* of zero-slack nodes/edges (not this single path) is what the UI
-    should use for highlighting — this path is only for computing one total-processing-time."""
+    """Deterministic single critical path (for the scalar PCE number, and for rendering a
+    linear VSM timeline), via backtrack through zero-slack nodes. Two different things want
+    two different shapes here: `critical_step_ids`/`critical_edge_ids` (elsewhere in this
+    module) are the full *set* of zero-slack nodes/edges — correct under ties, right for
+    highlighting every co-critical path on the canvas — while THIS ordered list is one single
+    walkable sequence, source to sink, for anything that needs "first this, then that" (the
+    scalar processing-time sum, and `critical_path_step_ids`/`critical_path_edge_ids` for a
+    sawtooth timeline visual). Under a tie, which of several equal-length paths gets walked
+    is arbitrary-but-deterministic (lowest id wins at each fork) — fine for a single number
+    or one timeline rendering, not fine as "the" definitive critical path for highlighting."""
     if not node_ids:
         return []
 
@@ -318,20 +324,37 @@ def compute_metrics(
             "has_child_map": bottleneck_step["id"] in child_map_metrics,
         }
 
-    top_wait = sorted(flow_edges, key=lambda e: -(e.get("wait_time_sec") or 0))[
-        :TOP_WAIT_CONTRIBUTORS
-    ]
-    top_wait_contributors = [
-        {
-            "edge_id": e["id"],
-            "source_step_id": e["source_step_id"],
-            "source_step_name": steps_by_id.get(e["source_step_id"], {}).get("name"),
-            "target_step_id": e["target_step_id"],
-            "target_step_name": steps_by_id.get(e["target_step_id"], {}).get("name"),
-            "wait_time_sec": e.get("wait_time_sec") or 0,
-        }
-        for e in top_wait
-        if (e.get("wait_time_sec") or 0) > 0
+    # Every wait-bearing connector, worst first — no arbitrary cutoff. The engine's job is to
+    # compute and sort; how many of these a UI chooses to show is a display decision, not a
+    # data decision, and shouldn't be baked into the API response.
+    wait_contributors = sorted(
+        (
+            {
+                "edge_id": e["id"],
+                "source_step_id": e["source_step_id"],
+                "source_step_name": steps_by_id.get(e["source_step_id"], {}).get("name"),
+                "target_step_id": e["target_step_id"],
+                "target_step_name": steps_by_id.get(e["target_step_id"], {}).get("name"),
+                "wait_time_sec": e.get("wait_time_sec") or 0,
+                "label": e.get("label"),
+            }
+            for e in flow_edges
+            if (e.get("wait_time_sec") or 0) > 0
+        ),
+        key=lambda w: (-w["wait_time_sec"], w["edge_id"]),
+    )
+
+    # Ordered step/edge sequence along the representative critical path, source to sink — for
+    # rendering a classic VSM sawtooth timeline (box, gap, box, gap...). Reuses the same
+    # rep_path already computed above rather than a second backtrack.
+    critical_path_edges_by_pair: dict[tuple[str, str], dict] = {}
+    for e in main_edges:
+        pair = (e["source_step_id"], e["target_step_id"])
+        critical_path_edges_by_pair.setdefault(pair, e)
+    critical_path_edge_ids = [
+        critical_path_edges_by_pair[(rep_path[i], rep_path[i + 1])]["id"]
+        for i in range(len(rep_path) - 1)
+        if (rep_path[i], rep_path[i + 1]) in critical_path_edges_by_pair
     ]
 
     def rollup_fields(n: str) -> dict:
@@ -386,7 +409,9 @@ def compute_metrics(
         "bottleneck": bottleneck,
         "critical_step_ids": critical_step_ids,
         "critical_edge_ids": critical_edge_ids,
-        "top_wait_contributors": top_wait_contributors,
+        "critical_path_step_ids": rep_path,
+        "critical_path_edge_ids": critical_path_edge_ids,
+        "wait_contributors": wait_contributors,
         "disconnected_step_ids": disconnected_ids,
         "cycles_detected": [
             {

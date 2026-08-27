@@ -82,12 +82,16 @@ def ai_insights(map_id):
             f"\"{b['name']}\" at {b['processing_time_sec']:.0f}s "
             f"({'on' if b['on_critical_path'] else 'NOT on'} the critical path)."
         )
-    if metrics["top_wait_contributors"]:
+    if metrics["wait_contributors"]:
         lines.append("Largest wait/queue contributors:")
-        for w in metrics["top_wait_contributors"]:
+        # engine.py returns every wait-bearing connector, sorted worst-first, with no cutoff
+        # (that's a display decision, not a data one) — trim here specifically because this
+        # list is going into an LLM prompt, where an unbounded map could bloat token usage.
+        for w in metrics["wait_contributors"][:5]:
             lines.append(
                 f"  - {w['source_step_name']} → {w['target_step_name']}: "
                 f"{w['wait_time_sec']:.0f}s wait"
+                + (f" ({w['label']})" if w.get("label") else "")
             )
     if metrics["disconnected_step_ids"]:
         names = [steps_by_id[sid].name for sid in metrics["disconnected_step_ids"] if sid in steps_by_id]

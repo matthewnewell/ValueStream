@@ -72,6 +72,9 @@ export interface DeepestBottleneck extends Bottleneck {
   breadcrumb: BreadcrumbHop[]
 }
 
+/** One connector with wait time > 0, worst-first — engine.py returns EVERY one of these, no
+ * top-N cutoff. How many to show is a display decision for the component rendering the list,
+ * not something baked into the data. */
 export interface WaitContributor {
   edge_id: string
   source_step_id: string
@@ -79,6 +82,7 @@ export interface WaitContributor {
   target_step_id: string
   target_step_name: string | null
   wait_time_sec: number
+  label: string | null
 }
 
 export interface CycleEdge {
@@ -120,7 +124,13 @@ export interface MapMetrics {
   deepest_bottleneck: DeepestBottleneck | null
   critical_step_ids: string[]
   critical_edge_ids: string[]
-  top_wait_contributors: WaitContributor[]
+  /** One ordered walk of the critical path, source to sink — for a linear VSM timeline.
+   * Distinct from critical_step_ids/critical_edge_ids (the full *set* of zero-slack
+   * nodes/edges, correct under ties, used for canvas highlighting — not orderable as a
+   * single sequence when there's more than one equally-long path). */
+  critical_path_step_ids: string[]
+  critical_path_edge_ids: string[]
+  wait_contributors: WaitContributor[]
   disconnected_step_ids: string[]
   cycles_detected: CycleEdge[]
   step_metrics: Record<string, StepMetric>

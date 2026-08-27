@@ -1,0 +1,219 @@
+.bluf-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bluf-page__loading {
+  padding: 60px;
+  text-align: center;
+  color: var(--color-text-faint);
+}
+
+.bluf-page__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bluf-page__back {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.bluf-page__back:hover {
+  background: var(--color-surface-sunken);
+}
+
+.bluf-page__title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.bluf-page__content {
+  flex: 1;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.bluf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bluf-section__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.bluf-section__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bluf-section__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.bluf-section__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.bluf-section__body code {
+  background: var(--color-surface-sunken);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.bluf-section__body--muted {
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.bluf-section__body--error {
+  color: var(--color-critical);
+  background: var(--color-critical-soft);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.bluf-section__ai-btn {
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bluf-section__ai-btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.bluf-section__narrative {
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.bluf-section__narrative p {
+  margin: 0 0 8px;
+}
+
+.bluf-section__narrative p:last-child {
+  margin-bottom: 0;
+}
+
+.bluf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.bluf-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bluf-card--bottleneck {
+  border-color: var(--color-critical);
+}
+
+.bluf-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+}
+
+.bluf-card__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bluf-card--bottleneck .bluf-card__value {
+  color: var(--color-critical);
+  font-size: 18px;
+}
+
+.bluf-card__note {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.bluf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bluf-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bluf-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bluf-table tr:last-child td {
+  border-bottom: none;
+}
+
+.bluf-table__arrow {
+  color: var(--color-text-faint);
+}
+
+.bluf-table__duration {
+  font-weight: 700;
+  color: var(--color-wait);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bluf-table__missing-label {
+  color: var(--color-wait);
+  font-style: italic;
+}

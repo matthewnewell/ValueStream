@@ -172,15 +172,39 @@ def test_self_loop_edges_are_not_expected_but_do_not_crash():
     assert m["lead_time_sec"] == 5
 
 
-def test_top_wait_contributors_sorted_and_zero_wait_excluded():
+def test_wait_contributors_sorted_and_zero_wait_excluded():
     steps = [step("A", "A"), step("B", "B"), step("C", "C")]
     edges = [
         edge("e1", "A", "B", wait=0),
         edge("e2", "B", "C", wait=500),
     ]
     m = compute_metrics(steps, edges)
-    assert len(m["top_wait_contributors"]) == 1
-    assert m["top_wait_contributors"][0]["edge_id"] == "e2"
+    assert len(m["wait_contributors"]) == 1
+    assert m["wait_contributors"][0]["edge_id"] == "e2"
+
+
+def test_wait_contributors_has_no_cutoff_and_carries_label():
+    # Six wait-bearing edges — there is deliberately no top-N cap; the engine returns every
+    # one of them, sorted worst-first, and lets the caller decide how many to display.
+    steps = [step(str(i), str(i)) for i in range(7)]
+    edges = [edge(f"e{i}", str(i), str(i + 1), wait=(i + 1) * 10) for i in range(6)]
+    edges[0]["label"] = "waiting for truck"
+    m = compute_metrics(steps, edges)
+    assert len(m["wait_contributors"]) == 6
+    # worst (60s, edge e5) first
+    assert m["wait_contributors"][0]["wait_time_sec"] == 60
+    assert m["wait_contributors"][-1]["wait_time_sec"] == 10
+    assert m["wait_contributors"][-1]["label"] == "waiting for truck"
+
+
+def test_critical_path_step_and_edge_ids_are_ordered():
+    # A -> B -> C, a simple chain — the ordered critical path should walk it start to finish,
+    # and the edge list should have exactly one fewer entry than the step list.
+    steps = [step("A", "A", human=1), step("B", "B", human=1), step("C", "C", human=1)]
+    edges = [edge("e1", "A", "B", wait=5), edge("e2", "B", "C", wait=7)]
+    m = compute_metrics(steps, edges)
+    assert m["critical_path_step_ids"] == ["A", "B", "C"]
+    assert m["critical_path_edge_ids"] == ["e1", "e2"]
 
 
 # ── Nested value streams (child_map_metrics rollup) ─────────────────────────────────────────
