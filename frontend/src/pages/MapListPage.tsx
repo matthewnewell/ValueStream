@@ -48,9 +48,12 @@ export default function MapListPage() {
 
       {isLoading && <div className="map-list-page__loading">Loading maps…</div>}
 
+      {/* Existing maps land on BLUF first (the executive-summary view) — editing is a
+          deliberate next step from there, not the default landing. New maps skip straight to
+          the editor instead (handleCreate above): an empty map has nothing to summarize yet. */}
       <div className="map-list-page__grid">
         {maps?.map((m) => (
-          <div key={m.id} className="map-card" onClick={() => navigate(`/maps/${m.id}`)}>
+          <div key={m.id} className="map-card" onClick={() => navigate(`/maps/${m.id}/bluf`)}>
             <div className="map-card__name">{m.name}</div>
             {m.description && <div className="map-card__desc">{m.description}</div>}
             <div className="map-card__meta">

@@ -21,7 +21,10 @@ export default function Breadcrumb({ mapId }: BreadcrumbProps) {
           {i === crumbs.length - 1 ? (
             <span className="breadcrumb__current">{c.map_name}</span>
           ) : (
-            <button className="breadcrumb__item" onClick={() => navigate(`/maps/${c.map_id}`)}>
+            // Ancestor hops always land on that map's BLUF, same "arriving at a map lands on
+            // its summary" rule used everywhere else — regardless of whether you clicked
+            // this from the editor or from BLUF itself.
+            <button className="breadcrumb__item" onClick={() => navigate(`/maps/${c.map_id}/bluf`)}>
               {c.map_name}
             </button>
           )}

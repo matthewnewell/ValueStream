@@ -60,14 +60,16 @@ export default function MapEditorPage() {
 
   // Double-click (or the node's ⤵ badge) drills into a step's sub-process — creating one on
   // the fly if it doesn't have one yet, so "explode this step" is a single action either way.
+  // Lands on the child map's BLUF, same "arriving at a map lands on its summary" rule as
+  // everywhere else — not straight into its editor.
   function handleExpandStep(stepId: string) {
     const step = map!.steps.find((s) => s.id === stepId)
     if (step?.child_map_id) {
-      navigate(`/maps/${step.child_map_id}`)
+      navigate(`/maps/${step.child_map_id}/bluf`)
       return
     }
     expandStep.mutate(stepId, {
-      onSuccess: (childMap) => navigate(`/maps/${childMap.id}`),
+      onSuccess: (childMap) => navigate(`/maps/${childMap.id}/bluf`),
     })
   }
 
@@ -75,8 +77,8 @@ export default function MapEditorPage() {
     <div className="map-editor-page">
       <Breadcrumb mapId={mapId} />
       <div className="map-editor-page__toolbar">
-        <button className="map-editor-page__back" onClick={() => navigate('/')}>
-          ← Maps
+        <button className="map-editor-page__back" onClick={() => navigate(`/maps/${mapId}/bluf`)}>
+          ← BLUF
         </button>
         <input
           className="map-editor-page__title"
@@ -103,7 +105,6 @@ export default function MapEditorPage() {
           >
             ✨ Analyze bottlenecks
           </button>
-          <button onClick={() => navigate(`/maps/${mapId}/bluf`)}>📋 BLUF</button>
         </div>
       </div>
 

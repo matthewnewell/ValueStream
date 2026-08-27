@@ -25,10 +25,13 @@ export default function BlufPage() {
     <div className="bluf-page">
       <Breadcrumb mapId={mapId} />
       <div className="bluf-page__toolbar">
-        <button className="bluf-page__back" onClick={() => navigate(`/maps/${mapId}`)}>
-          ← Back to map
+        <button className="bluf-page__back" onClick={() => navigate('/')}>
+          ← Maps
         </button>
         <h1 className="bluf-page__title">{map.name} — BLUF</h1>
+        <button className="bluf-page__edit-btn" onClick={() => navigate(`/maps/${mapId}`)}>
+          ✏️ Edit map
+        </button>
       </div>
 
       <div className="bluf-page__content">
