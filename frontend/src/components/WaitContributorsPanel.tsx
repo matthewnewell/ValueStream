@@ -1,9 +1,10 @@
-import type { WaitContributor } from '../api/types'
+import type { MapMetrics, WaitContributor } from '../api/types'
 import { formatDuration } from '../lib/duration'
 import './WaitContributorsPanel.css'
 
 interface WaitContributorsPanelProps {
   contributors: WaitContributor[]
+  waitByKind: MapMetrics['wait_by_kind_sec'] | undefined
   onClose: () => void
   onSelectEdge: (edgeId: string) => void
 }
@@ -13,6 +14,7 @@ interface WaitContributorsPanelProps {
  * selects that connector on the canvas, which opens EdgeDrawer to edit/label it. */
 export default function WaitContributorsPanel({
   contributors,
+  waitByKind,
   onClose,
   onSelectEdge,
 }: WaitContributorsPanelProps) {
@@ -45,6 +47,14 @@ export default function WaitContributorsPanel({
                 ⚠ {unlabeled} unlabeled — worth naming what each gap is actually waiting on
               </span>
             )}
+            {waitByKind && (waitByKind.internal > 0 || waitByKind.external > 0) && (
+              <span>
+                {formatDuration(waitByKind.internal)} you control (internal) ·{' '}
+                {formatDuration(waitByKind.external)} outside your control (external)
+                {waitByKind.unspecified > 0 &&
+                  ` · ${formatDuration(waitByKind.unspecified)} uncategorized`}
+              </span>
+            )}
           </div>
 
           <ol className="wait-panel__list">
@@ -55,12 +65,25 @@ export default function WaitContributorsPanel({
                   <div className="wait-panel__row-path">
                     {c.source_step_name} <span className="wait-panel__arrow">→</span>{' '}
                     {c.target_step_name}
+                    {c.wait_kind && (
+                      <span className={`wait-panel__kind-badge wait-panel__kind-badge--${c.wait_kind}`}>
+                        {c.wait_kind}
+                      </span>
+                    )}
                   </div>
                   {c.label ? (
                     <div className="wait-panel__row-label">{c.label}</div>
                   ) : (
                     <div className="wait-panel__row-label wait-panel__row-label--missing">
                       no label — what's this wait for?
+                    </div>
+                  )}
+                  {c.slip_amplification && (
+                    <div className="wait-panel__slip-badge">
+                      ⚠ slip risk — gates {formatDuration(c.slip_amplification.protects_wait_sec)}
+                      {c.slip_amplification.protects_label
+                        ? ` (${c.slip_amplification.protects_label})`
+                        : ''}
                     </div>
                   )}
                 </div>

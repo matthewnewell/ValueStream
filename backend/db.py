@@ -38,6 +38,7 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 # needed (SQLite's ALTER TABLE can't cleanly rename/drop/retype columns pre-3.35).
 _MIGRATIONS = [
     ("step", "child_map_id", "ALTER TABLE step ADD COLUMN child_map_id VARCHAR(36) REFERENCES map(id)"),
+    ("edge", "wait_kind", "ALTER TABLE edge ADD COLUMN wait_kind VARCHAR(20)"),
 ]
 
 

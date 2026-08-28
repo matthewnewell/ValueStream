@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Edge } from '../api/types'
+import type { Edge, WaitKind } from '../api/types'
 import { useDeleteEdge, useUpdateEdge } from '../api/hooks'
 import DurationInput from './DurationInput'
 import './EdgeDrawer.css'
@@ -15,6 +15,7 @@ interface EdgeDrawerProps {
 export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName, onClose }: EdgeDrawerProps) {
   const [waitSec, setWaitSec] = useState(edge.wait_time_sec)
   const [label, setLabel] = useState(edge.label ?? '')
+  const [waitKind, setWaitKind] = useState<WaitKind>(edge.wait_kind)
 
   const updateEdge = useUpdateEdge(mapId)
   const deleteEdge = useDeleteEdge(mapId)
@@ -24,12 +25,17 @@ export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName
   useEffect(() => {
     setWaitSec(edge.wait_time_sec)
     setLabel(edge.label ?? '')
-  }, [edge.id, edge.wait_time_sec, edge.label])
+    setWaitKind(edge.wait_kind)
+  }, [edge.id, edge.wait_time_sec, edge.label, edge.wait_kind])
 
-  const dirty = waitSec !== edge.wait_time_sec || label !== (edge.label ?? '')
+  const dirty =
+    waitSec !== edge.wait_time_sec || label !== (edge.label ?? '') || waitKind !== edge.wait_kind
 
   function handleSave() {
-    updateEdge.mutate({ edgeId: edge.id, data: { wait_time_sec: waitSec, label: label.trim() || null } })
+    updateEdge.mutate({
+      edgeId: edge.id,
+      data: { wait_time_sec: waitSec, label: label.trim() || null, wait_kind: waitKind },
+    })
   }
 
   function handleDelete() {
@@ -54,6 +60,29 @@ export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName
           Queue, transport, or approval delay between these two steps — the real elapsed time
           that passes with no work happening. This is what the lead-time / critical-path
           calculation uses as this connector's weight.
+        </p>
+      </div>
+
+      <div className="edge-drawer__field">
+        <span className="edge-drawer__field-label">Who controls this wait?</span>
+        <div className="edge-drawer__kind-toggle">
+          <button
+            className={`edge-drawer__kind-btn${waitKind === 'internal' ? ' edge-drawer__kind-btn--active-internal' : ''}`}
+            onClick={() => setWaitKind(waitKind === 'internal' ? null : 'internal')}
+          >
+            Internal
+          </button>
+          <button
+            className={`edge-drawer__kind-btn${waitKind === 'external' ? ' edge-drawer__kind-btn--active-external' : ''}`}
+            onClick={() => setWaitKind(waitKind === 'external' ? null : 'external')}
+          >
+            External
+          </button>
+        </div>
+        <p className="edge-drawer__hint">
+          Internal: your org controls it (approvals, sign-offs, QA holds) — you can act on it
+          this week. External: outside your control (vendor lead time, shipping) — pad a
+          buffer instead.
         </p>
       </div>
 

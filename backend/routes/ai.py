@@ -73,7 +73,10 @@ def _build_context_lines(m: Map, metrics: dict) -> list[str]:
     # deepest_bottleneck, not the plain top-level bottleneck: for a step that owns a child
     # map, the top-level one just says "Design, 3.2 weeks" — deepest_bottleneck drills through
     # however many levels of nesting to the actual leaf step responsible, which is what an
-    # operator asking "why" actually wants named.
+    # operator asking "why" actually wants named. Explicitly labeled a *capacity* signal
+    # (below, alongside it) so the model doesn't conflate "busiest work step" with "biggest
+    # driver of the calendar" — those are frequently two different steps, and the whole point
+    # of surfacing both is to stop a PM from fixating on the wrong one.
     db = metrics.get("deepest_bottleneck")
     if db:
         crumb = (
@@ -82,21 +85,44 @@ def _build_context_lines(m: Map, metrics: dict) -> list[str]:
             else ""
         )
         lines.append(
-            f'Bottleneck (highest single-step processing time): "{db["name"]}"{crumb} at '
-            f"{db['processing_time_sec']:.0f}s "
+            f'Capacity bottleneck (highest single-step WORK time — the constraint on '
+            f'throughput, not necessarily the biggest driver of lead time): "{db["name"]}"'
+            f"{crumb} at {db['processing_time_sec']:.0f}s "
             f"({'on' if db['on_critical_path'] else 'NOT on'} the critical path)."
         )
 
     if metrics["wait_contributors"]:
+        top = metrics["wait_contributors"][0]
+        lines.append(
+            f"Dominant delay (the single biggest driver of lead time): "
+            f"{top['source_step_name']} → {top['target_step_name']}, "
+            f"{top['wait_time_sec']:.0f}s" + (f" ({top['label']})" if top.get("label") else "")
+        )
+        wbk = metrics.get("wait_by_kind_sec") or {}
+        if wbk.get("internal") or wbk.get("external"):
+            lines.append(
+                f"Wait time you control (internal — approvals, sign-offs, holds): "
+                f"{wbk.get('internal', 0):.0f}s. Wait time outside your control (external — "
+                f"vendor/supplier/shipping): {wbk.get('external', 0):.0f}s."
+            )
         lines.append("Largest wait/queue contributors:")
         # engine.py returns every wait-bearing connector, sorted worst-first, with no cutoff
         # (that's a display decision, not a data one) — trim here specifically because this
         # list is going into an LLM prompt, where an unbounded map could bloat token usage.
         for w in metrics["wait_contributors"][:5]:
+            kind_note = f" [{w['wait_kind']}]" if w.get("wait_kind") else ""
+            slip = w.get("slip_amplification")
+            slip_note = (
+                f" — SLIP RISK: a short delay here can miss the {slip['protects_wait_sec']:.0f}s "
+                f"window it gates ({slip.get('protects_label') or slip['protects_target_step_name']})"
+                if slip
+                else ""
+            )
             lines.append(
                 f"  - {w['source_step_name']} → {w['target_step_name']}: "
-                f"{w['wait_time_sec']:.0f}s wait"
+                f"{w['wait_time_sec']:.0f}s wait{kind_note}"
                 + (f" ({w['label']})" if w.get("label") else "")
+                + slip_note
             )
 
     if metrics["disconnected_step_ids"]:
@@ -137,11 +163,18 @@ def ai_insights(map_id):
     lines = _build_context_lines(m, metrics)
 
     system = (
-        "You are a Lean/Six Sigma value-stream-mapping analyst. Given the computed metrics and "
-        "step list for a value stream map, write a concise executive analysis (3-6 short "
-        "paragraphs or bullet points): identify the bottleneck and explain its impact, call out "
-        "the biggest sources of wasted (wait) time, and give 2-3 concrete, specific "
-        "improvement suggestions. Be direct and practical, not generic."
+        "You are a Lean/Six Sigma value-stream-mapping analyst for project-based engineering "
+        "work (not repeatable manufacturing) — the constraint shifts over time and the map "
+        "below is a snapshot, so speak to what THIS snapshot shows, not eternal truths. Given "
+        "the computed metrics and step list, write a concise executive analysis (3-6 short "
+        "paragraphs or bullet points). Explicitly distinguish the capacity bottleneck (the "
+        "busiest work step — matters for throughput) from the dominant delay (the biggest "
+        "driver of THIS project's calendar — matters for the deadline) when they differ; do "
+        "not call the capacity bottleneck 'the bottleneck' as if it's the only one that "
+        "matters. Call out slip-risk waits by name if any are flagged. Give 2-3 concrete, "
+        "specific improvement suggestions, and prefer actionable ones over ones the operator "
+        "can't control (an internal wait they can act on this week beats an external one they "
+        "can only pad a buffer around). Be direct and practical, not generic."
     )
     narrative = ai_client.chat(
         messages=[{"role": "user", "content": "\n".join(lines)}],
@@ -172,13 +205,17 @@ def chat_with_map(map_id):
     lines = _build_context_lines(m, metrics)
 
     system = (
-        "You are a Lean/Six Sigma value-stream-mapping analyst having an ongoing conversation "
-        "with the operator who owns the value stream map described below. Answer questions "
-        "about it, explain what's driving lead time, discuss constraints, and give concrete, "
-        "specific recommendations grounded in the actual numbers below — never generic advice "
-        "unconnected to this map. If asked something the data can't answer (e.g. the real-world "
-        "root cause behind a delay), say so plainly rather than guessing. Keep replies "
-        "conversational and reasonably short unless the operator asks for depth.\n\n"
+        "You are a Lean/Six Sigma value-stream-mapping analyst for project-based engineering "
+        "work, having an ongoing conversation with the operator who owns the value stream map "
+        "described below. Answer questions about it, explain what's driving lead time, discuss "
+        "constraints, and give concrete, specific recommendations grounded in the actual "
+        "numbers below — never generic advice unconnected to this map. Keep the capacity "
+        "bottleneck (busiest work step) and the dominant delay (biggest driver of the "
+        "calendar) distinct if the operator conflates them — they're often different steps. "
+        "Point out slip-risk waits (a short delay that gates a much longer one) when relevant. "
+        "If asked something the data can't answer (e.g. the real-world root cause behind a "
+        "delay), say so plainly rather than guessing. Keep replies conversational and "
+        "reasonably short unless the operator asks for depth.\n\n"
         + "\n".join(lines)
     )
 

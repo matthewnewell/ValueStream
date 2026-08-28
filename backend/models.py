@@ -128,6 +128,13 @@ class Edge(db.Model):
     label = db.Column(db.String(200), nullable=True)
     kind = db.Column(db.String(20), default="flow", nullable=False)
 
+    # Whether this wait is something the operator's own org controls (an internal queue —
+    # approvals, sign-offs, QA holds) or sits outside their control (external — vendor lead
+    # time, shipping transit). Nullable/unset by default: the operator categorizes it, the
+    # engine never guesses. Distinct from `kind` above (topology: flow vs a future info-flow
+    # edge type) — this is about who can act on the delay, not what the edge represents.
+    wait_kind = db.Column(db.String(20), nullable=True)  # "internal" | "external" | None
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -137,4 +144,5 @@ class Edge(db.Model):
             "wait_time_sec": self.wait_time_sec,
             "label": self.label,
             "kind": self.kind,
+            "wait_kind": self.wait_kind,
         }

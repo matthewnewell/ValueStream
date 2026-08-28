@@ -145,6 +145,7 @@ export default function MapEditorPage() {
         {showWaitPanel && (
           <WaitContributorsPanel
             contributors={metrics?.wait_contributors ?? []}
+            waitByKind={metrics?.wait_by_kind_sec}
             onClose={() => setShowWaitPanel(false)}
             onSelectEdge={handleSelectEdge}
           />

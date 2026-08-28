@@ -10,14 +10,15 @@ def step(id_, name, human=0, machine=0):
     return {"id": id_, "name": name, "human_time_sec": human, "machine_time_sec": machine}
 
 
-def edge(id_, src, tgt, wait=0, kind="flow"):
+def edge(id_, src, tgt, wait=0, kind="flow", wait_kind=None, label=None):
     return {
         "id": id_,
         "source_step_id": src,
         "target_step_id": tgt,
         "wait_time_sec": wait,
         "kind": kind,
-        "label": None,
+        "label": label,
+        "wait_kind": wait_kind,
     }
 
 
@@ -205,6 +206,60 @@ def test_critical_path_step_and_edge_ids_are_ordered():
     m = compute_metrics(steps, edges)
     assert m["critical_path_step_ids"] == ["A", "B", "C"]
     assert m["critical_path_edge_ids"] == ["e1", "e2"]
+
+
+# ── Wait categorization (internal/external) and slip amplification ─────────────────────────
+
+
+def test_wait_by_kind_sums_across_categories():
+    steps = [step(str(i), str(i)) for i in range(4)]
+    edges = [
+        edge("e1", "0", "1", wait=100, wait_kind="internal"),
+        edge("e2", "1", "2", wait=50, wait_kind="internal"),
+        edge("e3", "2", "3", wait=200, wait_kind="external"),
+    ]
+    m = compute_metrics(steps, edges)
+    assert m["wait_by_kind_sec"] == {"internal": 150, "external": 200, "unspecified": 0}
+
+
+def test_wait_by_kind_uncategorized_bucket():
+    steps = [step("A", "A"), step("B", "B")]
+    edges = [edge("e1", "A", "B", wait=30)]  # wait_kind left unset
+    m = compute_metrics(steps, edges)
+    assert m["wait_by_kind_sec"] == {"internal": 0, "external": 0, "unspecified": 30}
+    assert m["wait_contributors"][0]["wait_kind"] is None
+
+
+def test_slip_amplification_flags_short_gate_before_much_longer_wait():
+    # A -> [wait 1] -> B -> [wait 100, 100x longer] -> C -> [wait 40, only 2x] -> D
+    # e1 should be flagged as protecting e2 (100 >= 3x its own 1). e2 should NOT be flagged
+    # protecting e3 (40 is only 2x 100... wait, 40 < 100, so e2 isn't even a "short gate" in
+    # front of a longer wait here — e2 is itself the long one). Only e1 qualifies.
+    steps = [step(x, x, human=1) for x in ("A", "B", "C", "D")]
+    edges = [
+        edge("e1", "A", "B", wait=1),
+        edge("e2", "B", "C", wait=100),
+        edge("e3", "C", "D", wait=40),
+    ]
+    m = compute_metrics(steps, edges)
+    by_id = {w["edge_id"]: w for w in m["wait_contributors"]}
+
+    assert by_id["e1"]["slip_amplification"] == {
+        "protects_wait_sec": 100,
+        "protects_label": None,
+        "protects_target_step_name": "C",
+    }
+    assert by_id["e2"]["slip_amplification"] is None  # 40 is not >= 3x 100
+    assert by_id["e3"]["slip_amplification"] is None  # nothing follows it
+
+
+def test_slip_amplification_not_flagged_below_ratio_threshold():
+    # Downstream wait is only 2x, not >= the 3x threshold — should not be flagged.
+    steps = [step(x, x, human=1) for x in ("A", "B", "C")]
+    edges = [edge("e1", "A", "B", wait=10), edge("e2", "B", "C", wait=20)]
+    m = compute_metrics(steps, edges)
+    by_id = {w["edge_id"]: w for w in m["wait_contributors"]}
+    assert by_id["e1"]["slip_amplification"] is None
 
 
 # ── Nested value streams (child_map_metrics rollup) ─────────────────────────────────────────

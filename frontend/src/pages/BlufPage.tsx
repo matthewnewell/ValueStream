@@ -66,7 +66,9 @@ export default function BlufPage() {
           </div>
 
           <div className="bluf-card bluf-card--bottleneck">
-            <div className="bluf-card__label">Bottleneck</div>
+            <div className="bluf-card__label" title="The busiest single work step — the constraint on throughput. Not necessarily what's driving the calendar; see Dominant Delay for that.">
+              Capacity Bottleneck
+            </div>
             {db ? (
               <>
                 <div className="bluf-card__value">🔥 {db.name}</div>
@@ -89,6 +91,23 @@ export default function BlufPage() {
               <div className="bluf-card__value">—</div>
             )}
           </div>
+
+          {metrics.wait_contributors.length > 0 && (
+            <div className="bluf-card bluf-card--delay">
+              <div className="bluf-card__label" title="The single biggest driver of THIS map's lead time — often a different step than the capacity bottleneck above.">
+                Dominant Delay
+              </div>
+              <div className="bluf-card__value">
+                ⏳ {metrics.wait_contributors[0].source_step_name}
+                {' → '}
+                {metrics.wait_contributors[0].target_step_name}
+              </div>
+              <div className="bluf-card__note">
+                {formatDuration(metrics.wait_contributors[0].wait_time_sec)}
+                {metrics.wait_contributors[0].label && ` — ${metrics.wait_contributors[0].label}`}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="bluf-section">
@@ -113,31 +132,66 @@ export default function BlufPage() {
           {metrics.wait_contributors.length === 0 ? (
             <p className="bluf-section__body">No wait time recorded anywhere in this map.</p>
           ) : (
-            <table className="bluf-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Connector</th>
-                  <th>What it's waiting for</th>
-                  <th>Wait time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.wait_contributors.map((w, i) => (
-                  <tr key={w.edge_id}>
-                    <td>{i + 1}</td>
-                    <td>
-                      {w.source_step_name} <span className="bluf-table__arrow">→</span>{' '}
-                      {w.target_step_name}
-                    </td>
-                    <td>
-                      {w.label || <span className="bluf-table__missing-label">no label</span>}
-                    </td>
-                    <td className="bluf-table__duration">{formatDuration(w.wait_time_sec)}</td>
+            <>
+              {(metrics.wait_by_kind_sec.internal > 0 || metrics.wait_by_kind_sec.external > 0) && (
+                <p className="bluf-section__body bluf-section__body--muted">
+                  Of the wait time above,{' '}
+                  <strong>{formatDuration(metrics.wait_by_kind_sec.internal)}</strong> is inside
+                  your control (internal — approvals, sign-offs, holds) and{' '}
+                  <strong>{formatDuration(metrics.wait_by_kind_sec.external)}</strong> is outside
+                  it (external — vendor/shipping)
+                  {metrics.wait_by_kind_sec.unspecified > 0 && (
+                    <>
+                      {' '}
+                      ({formatDuration(metrics.wait_by_kind_sec.unspecified)} not yet categorized)
+                    </>
+                  )}
+                  .
+                </p>
+              )}
+              <table className="bluf-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Connector</th>
+                    <th>What it's waiting for</th>
+                    <th>Wait time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {metrics.wait_contributors.map((w, i) => (
+                    <tr key={w.edge_id}>
+                      <td>{i + 1}</td>
+                      <td>
+                        {w.source_step_name} <span className="bluf-table__arrow">→</span>{' '}
+                        {w.target_step_name}
+                        {w.wait_kind && (
+                          <span
+                            className={`bluf-table__kind-badge bluf-table__kind-badge--${w.wait_kind}`}
+                          >
+                            {w.wait_kind}
+                          </span>
+                        )}
+                        {w.slip_amplification && (
+                          <div className="bluf-table__slip-badge">
+                            ⚠ slip risk — a short delay here can miss the{' '}
+                            {formatDuration(w.slip_amplification.protects_wait_sec)} window it
+                            gates (
+                            {w.slip_amplification.protects_label ||
+                              w.slip_amplification.protects_target_step_name}
+                            )
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {w.label || <span className="bluf-table__missing-label">no label</span>}
+                      </td>
+                      <td className="bluf-table__duration">{formatDuration(w.wait_time_sec)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
         </section>
 

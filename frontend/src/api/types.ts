@@ -24,6 +24,11 @@ export interface Step {
   child_map_id: string | null
 }
 
+/** Who can act on a wait: "internal" (the operator's own org controls it — approvals,
+ * sign-offs, QA holds) vs "external" (outside their control — vendor lead time, shipping).
+ * null/unset means not yet categorized. */
+export type WaitKind = 'internal' | 'external' | null
+
 export interface Edge {
   id: string
   map_id: string
@@ -32,6 +37,7 @@ export interface Edge {
   wait_time_sec: number
   label: string | null
   kind: string
+  wait_kind: WaitKind
 }
 
 export interface MapDetail extends MapSummary {
@@ -72,6 +78,17 @@ export interface DeepestBottleneck extends Bottleneck {
   breadcrumb: BreadcrumbHop[]
 }
 
+/** A short wait sitting immediately before a much longer one, on the critical path — flagged
+ * when the downstream wait is at least 3x this one. A short internal window (a PO approval)
+ * that gates a long external one (foundry lead time) is riskier than its own duration
+ * suggests: miss it and you don't just lose a day, you can miss the whole downstream window
+ * and lose the next cycle. */
+export interface SlipAmplification {
+  protects_wait_sec: number
+  protects_label: string | null
+  protects_target_step_name: string | null
+}
+
 /** One connector with wait time > 0, worst-first — engine.py returns EVERY one of these, no
  * top-N cutoff. How many to show is a display decision for the component rendering the list,
  * not something baked into the data. */
@@ -83,6 +100,8 @@ export interface WaitContributor {
   target_step_name: string | null
   wait_time_sec: number
   label: string | null
+  wait_kind: WaitKind
+  slip_amplification: SlipAmplification | null
 }
 
 export interface CycleEdge {
@@ -131,6 +150,9 @@ export interface MapMetrics {
   critical_path_step_ids: string[]
   critical_path_edge_ids: string[]
   wait_contributors: WaitContributor[]
+  /** Total wait time bucketed by who can act on it — keys always "internal"/"external"/
+   * "unspecified", values in seconds. Map-wide, same scope as wait_contributors. */
+  wait_by_kind_sec: { internal: number; external: number; unspecified: number }
   disconnected_step_ids: string[]
   cycles_detected: CycleEdge[]
   step_metrics: Record<string, StepMetric>

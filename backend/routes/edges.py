@@ -5,6 +5,17 @@ from models import Edge, Map, Step
 
 bp = Blueprint("edges", __name__)
 
+_WAIT_KINDS = {"internal", "external"}
+
+
+def _validate_wait_kind(body: dict) -> str | None:
+    """Returns an error message if body has an invalid wait_kind, else None. A missing key or
+    explicit null both mean "uncategorized" — only a non-null value outside the allowed set
+    is rejected."""
+    if "wait_kind" in body and body["wait_kind"] is not None and body["wait_kind"] not in _WAIT_KINDS:
+        return f"wait_kind must be one of {sorted(_WAIT_KINDS)} or null, got {body['wait_kind']!r}"
+    return None
+
 
 @bp.post("/api/maps/<map_id>/edges")
 def create_edge(map_id):
@@ -17,6 +28,8 @@ def create_edge(map_id):
         return jsonify({"error": "source_step_id and target_step_id are required"}), 400
     if source_id == target_id:
         return jsonify({"error": "a step cannot connect to itself"}), 400
+    if err := _validate_wait_kind(body):
+        return jsonify({"error": err}), 400
 
     # Route-level check, not enforceable by a plain FK: both steps must exist AND belong to
     # this exact map (an edge can't span two different maps).
@@ -34,6 +47,7 @@ def create_edge(map_id):
         wait_time_sec=body.get("wait_time_sec", 0.0),
         label=body.get("label"),
         kind=body.get("kind", "flow"),
+        wait_kind=body.get("wait_kind"),
     )
     db.session.add(edge)
     db.session.commit()
@@ -44,6 +58,8 @@ def create_edge(map_id):
 def update_edge(edge_id):
     edge = Edge.query.get_or_404(edge_id)
     body = request.get_json(force=True) or {}
+    if err := _validate_wait_kind(body):
+        return jsonify({"error": err}), 400
 
     if "wait_time_sec" in body:
         edge.wait_time_sec = body["wait_time_sec"]
@@ -51,6 +67,8 @@ def update_edge(edge_id):
         edge.label = body["label"]
     if "kind" in body:
         edge.kind = body["kind"]
+    if "wait_kind" in body:
+        edge.wait_kind = body["wait_kind"]
 
     db.session.commit()
     return jsonify(edge.to_dict())

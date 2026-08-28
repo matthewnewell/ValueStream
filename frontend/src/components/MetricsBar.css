@@ -44,6 +44,10 @@
   color: var(--color-critical);
 }
 
+.metrics-bar__stat--delay .metrics-bar__stat-value {
+  color: var(--color-wait);
+}
+
 .metrics-bar__stat-path {
   font-size: 11px;
   color: var(--color-text-faint);

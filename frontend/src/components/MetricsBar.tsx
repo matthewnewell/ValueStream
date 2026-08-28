@@ -46,7 +46,9 @@ export default function MetricsBar({ metrics, isLoading }: MetricsBarProps) {
       </div>
       <div className="metrics-bar__divider" />
       <div className="metrics-bar__stat metrics-bar__stat--bottleneck">
-        <span className="metrics-bar__stat-label">Bottleneck</span>
+        <span className="metrics-bar__stat-label" title="The busiest single work step — the constraint on throughput, not necessarily what's driving the calendar">
+          Capacity bottleneck
+        </span>
         <span className="metrics-bar__stat-value">
           {metrics.deepest_bottleneck ? (
             <>
@@ -70,6 +72,22 @@ export default function MetricsBar({ metrics, isLoading }: MetricsBarProps) {
           </span>
         )}
       </div>
+
+      {metrics.wait_contributors.length > 0 && (
+        <div className="metrics-bar__stat metrics-bar__stat--delay">
+          <span className="metrics-bar__stat-label" title="The single biggest driver of this map's lead time — often a different step than the capacity bottleneck">
+            Dominant delay
+          </span>
+          <span className="metrics-bar__stat-value">
+            ⏳ {metrics.wait_contributors[0].source_step_name}
+            {' → '}
+            {metrics.wait_contributors[0].target_step_name}{' '}
+            <span className="metrics-bar__stat-sub">
+              ({formatDuration(metrics.wait_contributors[0].wait_time_sec)})
+            </span>
+          </span>
+        </div>
+      )}
 
       {warnings.length > 0 && (
         <div className="metrics-bar__warnings">

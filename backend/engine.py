@@ -324,6 +324,44 @@ def compute_metrics(
             "has_child_map": bottleneck_step["id"] in child_map_metrics,
         }
 
+    # Ordered step/edge sequence along the representative critical path, source to sink — for
+    # rendering a classic VSM sawtooth timeline (box, gap, box, gap...), and (below) for
+    # detecting slip amplification. Reuses the same rep_path already computed above rather
+    # than a second backtrack.
+    critical_path_edges_by_pair: dict[tuple[str, str], dict] = {}
+    for e in main_edges:
+        pair = (e["source_step_id"], e["target_step_id"])
+        critical_path_edges_by_pair.setdefault(pair, e)
+    critical_path_edges_ordered = [
+        critical_path_edges_by_pair[(rep_path[i], rep_path[i + 1])]
+        for i in range(len(rep_path) - 1)
+        if (rep_path[i], rep_path[i + 1]) in critical_path_edges_by_pair
+    ]
+    critical_path_edge_ids = [e["id"] for e in critical_path_edges_ordered]
+
+    # Slip amplification: a SHORT wait sitting immediately before a MUCH LONGER one, on the
+    # critical path, is riskier than its own duration suggests — miss a narrow internal
+    # window (a PO approval) and you don't just lose a day, you can miss the long external
+    # window it gates (this week's foundry pour) and lose the whole next cycle. Flag the
+    # short edge as "protecting" the long one whenever the downstream wait is at least
+    # SLIP_AMPLIFICATION_RATIO times its own — cheap to compute (one pass over an already-
+    # ordered list), and a genuinely different signal from "worst by duration" (a short gate
+    # in front of a long wait can matter more than a longer wait with nothing riding on it).
+    SLIP_AMPLIFICATION_RATIO = 3.0
+    slip_amplification_by_edge_id: dict[str, dict] = {}
+    for i in range(len(critical_path_edges_ordered) - 1):
+        gate, protected = critical_path_edges_ordered[i], critical_path_edges_ordered[i + 1]
+        gate_wait = gate.get("wait_time_sec") or 0
+        protected_wait = protected.get("wait_time_sec") or 0
+        if gate_wait > 0 and protected_wait >= SLIP_AMPLIFICATION_RATIO * gate_wait:
+            slip_amplification_by_edge_id[gate["id"]] = {
+                "protects_wait_sec": protected_wait,
+                "protects_label": protected.get("label"),
+                "protects_target_step_name": steps_by_id.get(
+                    protected["target_step_id"], {}
+                ).get("name"),
+            }
+
     # Every wait-bearing connector, worst first — no arbitrary cutoff. The engine's job is to
     # compute and sort; how many of these a UI chooses to show is a display decision, not a
     # data decision, and shouldn't be baked into the API response.
@@ -337,6 +375,8 @@ def compute_metrics(
                 "target_step_name": steps_by_id.get(e["target_step_id"], {}).get("name"),
                 "wait_time_sec": e.get("wait_time_sec") or 0,
                 "label": e.get("label"),
+                "wait_kind": e.get("wait_kind"),
+                "slip_amplification": slip_amplification_by_edge_id.get(e["id"]),
             }
             for e in flow_edges
             if (e.get("wait_time_sec") or 0) > 0
@@ -344,18 +384,16 @@ def compute_metrics(
         key=lambda w: (-w["wait_time_sec"], w["edge_id"]),
     )
 
-    # Ordered step/edge sequence along the representative critical path, source to sink — for
-    # rendering a classic VSM sawtooth timeline (box, gap, box, gap...). Reuses the same
-    # rep_path already computed above rather than a second backtrack.
-    critical_path_edges_by_pair: dict[tuple[str, str], dict] = {}
-    for e in main_edges:
-        pair = (e["source_step_id"], e["target_step_id"])
-        critical_path_edges_by_pair.setdefault(pair, e)
-    critical_path_edge_ids = [
-        critical_path_edges_by_pair[(rep_path[i], rep_path[i + 1])]["id"]
-        for i in range(len(rep_path) - 1)
-        if (rep_path[i], rep_path[i + 1]) in critical_path_edges_by_pair
-    ]
+    # Total wait time by who can act on it: "internal" (the operator's own org controls
+    # this — approvals, sign-offs, QA holds) vs "external" (outside their control — vendor
+    # lead time, shipping) vs "unspecified" (not yet categorized). Map-wide, matching
+    # wait_contributors' own scope, not just the critical path.
+    wait_by_kind = {"internal": 0.0, "external": 0.0, "unspecified": 0.0}
+    for e in flow_edges:
+        w = e.get("wait_time_sec") or 0
+        if w <= 0:
+            continue
+        wait_by_kind[e.get("wait_kind") if e.get("wait_kind") in ("internal", "external") else "unspecified"] += w
 
     def rollup_fields(n: str) -> dict:
         child = child_map_metrics.get(n)
@@ -412,6 +450,7 @@ def compute_metrics(
         "critical_path_step_ids": rep_path,
         "critical_path_edge_ids": critical_path_edge_ids,
         "wait_contributors": wait_contributors,
+        "wait_by_kind_sec": wait_by_kind,
         "disconnected_step_ids": disconnected_ids,
         "cycles_detected": [
             {
