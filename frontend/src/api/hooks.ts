@@ -3,6 +3,8 @@ import { api } from './client'
 import type {
   AiInsightsResult,
   AiSuggestResult,
+  ChatMessage,
+  ChatResult,
   Edge,
   MapBreadcrumbEntry,
   MapDetail,
@@ -180,5 +182,16 @@ export function useAiSuggestStep() {
 export function useAiInsights(mapId: string) {
   return useMutation({
     mutationFn: () => api.post<AiInsightsResult>(`/maps/${mapId}/ai-insights`),
+  })
+}
+
+/** Conversation history lives entirely in the caller's React state, not here and not on the
+ * server — each call sends the full message list so far and gets one reply back. The backend
+ * rebuilds the map's context fresh on every call, so an edit made mid-conversation is
+ * reflected in the very next reply without needing to restart the chat. */
+export function useMapChat(mapId: string) {
+  return useMutation({
+    mutationFn: (messages: ChatMessage[]) =>
+      api.post<ChatResult>(`/maps/${mapId}/chat`, { messages }),
   })
 }

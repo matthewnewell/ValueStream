@@ -1,0 +1,136 @@
+import { useRef, useState } from 'react'
+import { useMapChat } from '../api/hooks'
+import type { ChatMessage } from '../api/types'
+import './MapChatPanel.css'
+
+interface MapChatPanelProps {
+  mapId: string
+  aiConfigured: boolean
+}
+
+const STARTER_PROMPTS = [
+  "What's driving my lead time?",
+  'Where should I focus first?',
+  'Is my bottleneck really the constraint?',
+]
+
+/** Conversation history is plain React state — nothing persisted to the backend or a
+ * database. Refreshing the page or navigating away loses it. That's a deliberate v1 scope
+ * decision (this is a working-session tool, not a permanent record), not an oversight. */
+export default function MapChatPanel({ mapId, aiConfigured }: MapChatPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const chat = useMapChat(mapId)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  function scrollToBottom() {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
+    })
+  }
+
+  function send(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed || chat.isPending) return
+
+    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: trimmed }]
+    setMessages(nextMessages)
+    setInput('')
+    setError(null)
+    scrollToBottom()
+
+    chat.mutate(nextMessages, {
+      onSuccess: (result) => {
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+        setMessages((m) => [...m, { role: 'assistant', content: result.reply }])
+        scrollToBottom()
+      },
+      onError: (err) => setError(err instanceof Error ? err.message : 'Something went wrong'),
+    })
+  }
+
+  if (!aiConfigured) {
+    return (
+      <aside className="chat-panel chat-panel--empty">
+        <h3 className="chat-panel__title">✨ Ask about this map</h3>
+        <div className="chat-panel__not-configured">
+          AI is not configured for this instance. Set <code>AI_PROVIDER</code> to{' '}
+          <code>claude</code> or <code>ollama</code> to talk through this value stream's
+          bottlenecks, constraints, and recommendations. Everything else in BLUF works fully
+          without it.
+        </div>
+      </aside>
+    )
+  }
+
+  return (
+    <aside className="chat-panel">
+      <h3 className="chat-panel__title">✨ Ask about this map</h3>
+
+      <div className="chat-panel__messages" ref={listRef}>
+        {messages.length === 0 && (
+          <div className="chat-panel__intro">
+            <p>
+              Ask about the bottleneck, why lead time is what it is, what's actually
+              constraining this value stream, or what to fix first.
+            </p>
+            <div className="chat-panel__starters">
+              {STARTER_PROMPTS.map((p) => (
+                <button key={p} className="chat-panel__starter" onClick={() => send(p)}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div key={i} className={`chat-panel__msg chat-panel__msg--${m.role}`}>
+            {m.content}
+          </div>
+        ))}
+
+        {chat.isPending && (
+          <div className="chat-panel__msg chat-panel__msg--assistant chat-panel__msg--pending">
+            thinking…
+          </div>
+        )}
+
+        {error && <div className="chat-panel__error">{error}</div>}
+      </div>
+
+      <form
+        className="chat-panel__input-row"
+        onSubmit={(e) => {
+          e.preventDefault()
+          send(input)
+        }}
+      >
+        <textarea
+          className="chat-panel__input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              send(input)
+            }
+          }}
+          placeholder="Ask a question…"
+          rows={2}
+        />
+        <button
+          type="submit"
+          className="chat-panel__send"
+          disabled={!input.trim() || chat.isPending}
+        >
+          Send
+        </button>
+      </form>
+    </aside>
+  )
+}

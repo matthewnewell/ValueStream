@@ -152,3 +152,13 @@ export interface AiInsightsResult {
   metrics: MapMetrics
   error?: string
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatResult {
+  reply: string
+  error?: string
+}

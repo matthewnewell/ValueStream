@@ -1,7 +1,14 @@
 .bluf-page {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.bluf-page__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 
 .bluf-page__loading {
@@ -60,8 +67,9 @@
 
 .bluf-page__content {
   flex: 1;
+  min-width: 0;
+  overflow-y: auto;
   max-width: 980px;
-  width: 100%;
   margin: 0 auto;
   padding: 28px 20px 80px;
   display: flex;

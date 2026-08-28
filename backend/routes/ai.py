@@ -1,8 +1,8 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 import ai_client
-from engine import compute_metrics
 from models import Map, Step
+from routes.maps import compute_metrics_recursive
 
 bp = Blueprint("ai", __name__, url_prefix="/api")
 
@@ -56,17 +56,11 @@ def ai_suggest_step(step_id):
     )
 
 
-@bp.post("/maps/<map_id>/ai-insights")
-def ai_insights(map_id):
-    m = Map.query.get_or_404(map_id)
-
-    if not ai_client.is_configured():
-        return jsonify({"error": ai_client.NOT_CONFIGURED_MESSAGE}), 503
-
-    metrics = compute_metrics(
-        [s.to_dict() for s in m.steps],
-        [e.to_dict() for e in m.edges],
-    )
+def _build_context_lines(m: Map, metrics: dict) -> list[str]:
+    """Plain-text description of a map's current computed state, shared by both /ai-insights
+    (one-shot narrative) and /chat (ongoing conversation) so the two features never drift
+    into describing a map differently. Always built fresh from compute_metrics_recursive at
+    call time — never cached — so answers reflect the map's current state, not a stale one."""
     steps_by_id = {s.id: s for s in m.steps}
 
     lines = [
@@ -75,13 +69,24 @@ def ai_insights(map_id):
         f"total processing time: {metrics['total_processing_time_sec']:.0f}s, "
         f"process cycle efficiency: {metrics['process_cycle_efficiency_pct']:.1f}%",
     ]
-    if metrics["bottleneck"]:
-        b = metrics["bottleneck"]
-        lines.append(
-            f"Highest single-step processing time (throughput bottleneck): "
-            f"\"{b['name']}\" at {b['processing_time_sec']:.0f}s "
-            f"({'on' if b['on_critical_path'] else 'NOT on'} the critical path)."
+
+    # deepest_bottleneck, not the plain top-level bottleneck: for a step that owns a child
+    # map, the top-level one just says "Design, 3.2 weeks" — deepest_bottleneck drills through
+    # however many levels of nesting to the actual leaf step responsible, which is what an
+    # operator asking "why" actually wants named.
+    db = metrics.get("deepest_bottleneck")
+    if db:
+        crumb = (
+            " (inside " + " › ".join(h["step_name"] for h in db["breadcrumb"][:-1]) + ")"
+            if len(db["breadcrumb"]) > 1
+            else ""
         )
+        lines.append(
+            f'Bottleneck (highest single-step processing time): "{db["name"]}"{crumb} at '
+            f"{db['processing_time_sec']:.0f}s "
+            f"({'on' if db['on_critical_path'] else 'NOT on'} the critical path)."
+        )
+
     if metrics["wait_contributors"]:
         lines.append("Largest wait/queue contributors:")
         # engine.py returns every wait-bearing connector, sorted worst-first, with no cutoff
@@ -93,6 +98,7 @@ def ai_insights(map_id):
                 f"{w['wait_time_sec']:.0f}s wait"
                 + (f" ({w['label']})" if w.get("label") else "")
             )
+
     if metrics["disconnected_step_ids"]:
         names = [steps_by_id[sid].name for sid in metrics["disconnected_step_ids"] if sid in steps_by_id]
         lines.append(f"Steps not connected to the main flow: {', '.join(names)}")
@@ -101,10 +107,34 @@ def ai_insights(map_id):
 
     lines.append("\nSteps:")
     for s in m.steps:
-        lines.append(
-            f"  - {s.name}: human={s.human_time_sec:.0f}s, machine={s.machine_time_sec:.0f}s"
-            + (f" — {s.description}" if s.description else "")
-        )
+        sm = metrics["step_metrics"].get(s.id, {})
+        if sm.get("has_child_map"):
+            lines.append(
+                f"  - {s.name}: expanded into its own {sm.get('child_step_count')}-step "
+                f"sub-process — rolled-up total {sm.get('effective_processing_sec', 0):.0f}s "
+                f"(human {sm.get('effective_human_sec', 0):.0f}s, "
+                f"machine {sm.get('effective_machine_sec', 0):.0f}s, "
+                f"wait inside it {sm.get('effective_wait_sec', 0):.0f}s)"
+                + (f" — {s.description}" if s.description else "")
+            )
+        else:
+            lines.append(
+                f"  - {s.name}: human={s.human_time_sec:.0f}s, machine={s.machine_time_sec:.0f}s"
+                + (f" — {s.description}" if s.description else "")
+            )
+
+    return lines
+
+
+@bp.post("/maps/<map_id>/ai-insights")
+def ai_insights(map_id):
+    m = Map.query.get_or_404(map_id)
+
+    if not ai_client.is_configured():
+        return jsonify({"error": ai_client.NOT_CONFIGURED_MESSAGE}), 503
+
+    metrics = compute_metrics_recursive(m)
+    lines = _build_context_lines(m, metrics)
 
     system = (
         "You are a Lean/Six Sigma value-stream-mapping analyst. Given the computed metrics and "
@@ -120,3 +150,37 @@ def ai_insights(map_id):
     )
 
     return jsonify({"narrative": narrative, "metrics": metrics})
+
+
+@bp.post("/maps/<map_id>/chat")
+def chat_with_map(map_id):
+    """Ongoing conversation about one map — explanations, constraints, recommendations. The
+    frontend owns conversation history (nothing persisted server-side): each request carries
+    the full message list so far, and this route rebuilds the map's context fresh every time,
+    meaning an edit made mid-conversation is reflected in the very next reply."""
+    m = Map.query.get_or_404(map_id)
+
+    if not ai_client.is_configured():
+        return jsonify({"error": ai_client.NOT_CONFIGURED_MESSAGE}), 503
+
+    body = request.get_json(force=True) or {}
+    messages = body.get("messages")
+    if not messages or not isinstance(messages, list):
+        return jsonify({"error": "messages (a non-empty list) is required"}), 400
+
+    metrics = compute_metrics_recursive(m)
+    lines = _build_context_lines(m, metrics)
+
+    system = (
+        "You are a Lean/Six Sigma value-stream-mapping analyst having an ongoing conversation "
+        "with the operator who owns the value stream map described below. Answer questions "
+        "about it, explain what's driving lead time, discuss constraints, and give concrete, "
+        "specific recommendations grounded in the actual numbers below — never generic advice "
+        "unconnected to this map. If asked something the data can't answer (e.g. the real-world "
+        "root cause behind a delay), say so plainly rather than guessing. Keep replies "
+        "conversational and reasonably short unless the operator asks for depth.\n\n"
+        + "\n".join(lines)
+    )
+
+    reply = ai_client.chat(messages=messages, system=system, max_tokens=1024)
+    return jsonify({"reply": reply})
