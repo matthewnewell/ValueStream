@@ -6,6 +6,7 @@ import './MapChatPanel.css'
 interface MapChatPanelProps {
   mapId: string
   aiConfigured: boolean
+  onCollapse: () => void
 }
 
 const STARTER_PROMPTS = [
@@ -17,7 +18,7 @@ const STARTER_PROMPTS = [
 /** Conversation history is plain React state — nothing persisted to the backend or a
  * database. Refreshing the page or navigating away loses it. That's a deliberate v1 scope
  * decision (this is a working-session tool, not a permanent record), not an oversight. */
-export default function MapChatPanel({ mapId, aiConfigured }: MapChatPanelProps) {
+export default function MapChatPanel({ mapId, aiConfigured, onCollapse }: MapChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -56,12 +57,17 @@ export default function MapChatPanel({ mapId, aiConfigured }: MapChatPanelProps)
   if (!aiConfigured) {
     return (
       <aside className="chat-panel chat-panel--empty">
-        <h3 className="chat-panel__title">✨ Ask about this map</h3>
+        <div className="chat-panel__header">
+          <h3 className="chat-panel__title">✨ Ask about this map</h3>
+          <button className="chat-panel__collapse" onClick={onCollapse} title="Collapse chat">
+            »
+          </button>
+        </div>
         <div className="chat-panel__not-configured">
           AI is not configured for this instance. Set <code>AI_PROVIDER</code> to{' '}
           <code>claude</code> or <code>ollama</code> to talk through this value stream's
-          bottlenecks, constraints, and recommendations. Everything else in BLUF works fully
-          without it.
+          bottlenecks, constraints, and recommendations — while reviewing it on BLUF or
+          editing it on the canvas. Everything else works fully without it.
         </div>
       </aside>
     )
@@ -69,7 +75,12 @@ export default function MapChatPanel({ mapId, aiConfigured }: MapChatPanelProps)
 
   return (
     <aside className="chat-panel">
-      <h3 className="chat-panel__title">✨ Ask about this map</h3>
+      <div className="chat-panel__header">
+        <h3 className="chat-panel__title">✨ Ask about this map</h3>
+        <button className="chat-panel__collapse" onClick={onCollapse} title="Collapse chat">
+          »
+        </button>
+      </div>
 
       <div className="chat-panel__messages" ref={listRef}>
         {messages.length === 0 && (

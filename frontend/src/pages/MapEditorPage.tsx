@@ -8,7 +8,6 @@ import {
   useMapMetrics,
   useUpdateMap,
 } from '../api/hooks'
-import Breadcrumb from '../components/Breadcrumb'
 import MapCanvas from '../components/MapCanvas'
 import MetricsBar from '../components/MetricsBar'
 import StepDrawer from '../components/StepDrawer'
@@ -75,7 +74,6 @@ export default function MapEditorPage() {
 
   return (
     <div className="map-editor-page">
-      <Breadcrumb mapId={mapId} />
       <div className="map-editor-page__toolbar">
         <button className="map-editor-page__back" onClick={() => navigate(`/maps/${mapId}/bluf`)}>
           ← BLUF

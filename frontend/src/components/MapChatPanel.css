@@ -13,16 +13,38 @@
   padding: 16px;
 }
 
-.chat-panel__title {
-  margin: 0;
+.chat-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 16px 16px 12px;
-  font-size: 15px;
   border-bottom: 1px solid var(--color-border);
 }
 
-.chat-panel--empty .chat-panel__title {
+.chat-panel--empty .chat-panel__header {
   padding: 0 0 12px;
   border-bottom: none;
+}
+
+.chat-panel__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.chat-panel__collapse {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-faint);
+  font-size: 16px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.chat-panel__collapse:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
 }
 
 .chat-panel__not-configured {
