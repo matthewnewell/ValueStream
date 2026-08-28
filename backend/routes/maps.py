@@ -149,16 +149,14 @@ def delete_map(map_id):
     return "", 204
 
 
-@bp.post("/<map_id>/duplicate")
-def duplicate_map(map_id):
-    src = Map.query.get_or_404(map_id)
-    body = request.get_json(silent=True) or {}
-    new_name = (body.get("name") or f"{src.name} (copy)").strip()
-
-    # is_template/template_category are deliberately NOT copied: cloning a template (or any
-    # map) always produces a normal, editable project map, defaulting to is_template=False.
-    # That's what keeps "cloned from the library" from silently becoming "another template."
-    new_map = Map(name=new_name, description=src.description)
+def _deep_copy_map(src: Map, *, name: str, is_template: bool = False, template_category: str | None = None) -> Map:
+    """Shared deep-copy mechanics for duplicate (plain copy, always is_template=False) and
+    promote (copy into the library, is_template=True) below — same graph copy, different
+    destination flags. Caller still owns the commit."""
+    new_map = Map(
+        name=name, description=src.description,
+        is_template=is_template, template_category=template_category,
+    )
     db.session.add(new_map)
     db.session.flush()  # assign new_map.id without committing yet
 
@@ -177,7 +175,7 @@ def duplicate_map(map_id):
             notes=s.notes,
             # child_map_id intentionally NOT copied: "one owning step per child map" is the
             # invariant that lets metrics rollup stay simple, and pointing two steps at the
-            # same child map would break it. A duplicated step starts as a plain leaf; the
+            # same child map would break it. A copied step starts as a plain leaf; the
             # operator can /expand it fresh if the copy also needs its own sub-process.
         )
         db.session.add(new_step)
@@ -196,6 +194,42 @@ def duplicate_map(map_id):
                 wait_kind=e.wait_kind,
             )
         )
+
+    return new_map
+
+
+@bp.post("/<map_id>/duplicate")
+def duplicate_map(map_id):
+    src = Map.query.get_or_404(map_id)
+    body = request.get_json(silent=True) or {}
+    new_name = (body.get("name") or f"{src.name} (copy)").strip()
+
+    # is_template/template_category are deliberately NOT copied: cloning a template (or any
+    # map) always produces a normal, editable project map, defaulting to is_template=False.
+    # That's what keeps "cloned from the library" from silently becoming "another template."
+    new_map = _deep_copy_map(src, name=new_name)
+
+    db.session.commit()
+    return jsonify(new_map.to_dict()), 201
+
+
+@bp.post("/<map_id>/promote")
+def promote_map_to_template(map_id):
+    """The "closeout -> library" step from the Theory of Operation page: turn a finished
+    project into a reusable starting point for the next one. This is a COPY, not a move — the
+    original project map is left exactly where it was, still a normal map in the main list.
+    Unlike a from-scratch template, the copy carries the original's actual recorded numbers
+    forward (real durations, real wait times) rather than a zero scaffold — that's the whole
+    point of promoting a *finished* project instead of starting from an empty template."""
+    src = Map.query.get_or_404(map_id)
+    if src.is_template:
+        return jsonify({"error": "this map is already a library template"}), 400
+
+    body = request.get_json(silent=True) or {}
+    category = (body.get("template_category") or "").strip() or None
+    new_name = (body.get("name") or f"Template: {src.name}").strip()
+
+    new_map = _deep_copy_map(src, name=new_name, is_template=True, template_category=category)
 
     db.session.commit()
     return jsonify(new_map.to_dict()), 201

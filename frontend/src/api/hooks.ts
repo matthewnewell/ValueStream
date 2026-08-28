@@ -97,6 +97,19 @@ export function useDuplicateMap() {
   })
 }
 
+/** Promotes a finished project into the library: a COPY, is_template=true on the copy only —
+ * the source map (mapId here) is untouched and stays a normal map. See routes/maps.py's
+ * promote_map_to_template for why this carries real recorded numbers forward instead of a
+ * zero scaffold. */
+export function usePromoteMap(mapId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { template_category?: string; name?: string }) =>
+      api.post<MapDetail>(`/maps/${mapId}/promote`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['maps', 'templates'] }),
+  })
+}
+
 // ── Steps ────────────────────────────────────────────────────────────────────
 
 export function useCreateStep(mapId: string) {

@@ -1,5 +1,5 @@
-import { useParams } from 'react-router-dom'
-import { useMap, useMapMetrics } from '../api/hooks'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useMap, useMapMetrics, usePromoteMap } from '../api/hooks'
 import MapToolbar from '../components/MapToolbar'
 import VsmTimeline from '../components/VsmTimeline'
 import { formatDuration } from '../lib/duration'
@@ -7,8 +7,10 @@ import './BlufPage.css'
 
 export default function BlufPage() {
   const { mapId } = useParams<{ mapId: string }>()
+  const navigate = useNavigate()
   const { data: map, isLoading: mapLoading } = useMap(mapId)
   const { data: metrics, isLoading: metricsLoading } = useMapMetrics(mapId)
+  const promoteMap = usePromoteMap(mapId ?? '')
 
   if (!mapId) return null
   if (mapLoading || metricsLoading || !map || !metrics) {
@@ -18,9 +20,36 @@ export default function BlufPage() {
   const db = metrics.deepest_bottleneck
   const isNested = db && db.breadcrumb.length > 1
 
+  // Promoting is the "closeout -> library" step from the Theory of Operation page: a finished
+  // project's map, with its real recorded numbers, becomes next project's starting point
+  // instead of a zero scaffold. It's a copy, never a move — this map stays exactly as-is.
+  function handlePromote() {
+    const category = window.prompt(
+      'Promote this map to the library as a reusable template. The original stays exactly ' +
+        'as-is — this creates a copy.\n\nLibrary category (optional), e.g. "Technical ' +
+        'Processes" — leave blank for "Other":',
+    )
+    if (category === null) return // cancelled
+    promoteMap.mutate(
+      { template_category: category.trim() || undefined },
+      { onSuccess: () => navigate('/library') },
+    )
+  }
+
   return (
     <div className="bluf-page">
-      <MapToolbar mapId={mapId} mapName={map.name} view="bluf" />
+      <MapToolbar
+        mapId={mapId}
+        mapName={map.name}
+        view="bluf"
+        actions={
+          !map.is_template && (
+            <button onClick={handlePromote} disabled={promoteMap.isPending}>
+              📚 Promote to Library
+            </button>
+          )
+        }
+      />
 
       <div className="bluf-page__content">
         <section className="bluf-section">
