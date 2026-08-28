@@ -4,6 +4,13 @@
   padding: 40px 24px 80px;
 }
 
+.map-list-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .map-list-page__header h1 {
   margin: 0;
   font-size: 28px;
@@ -12,6 +19,21 @@
 .map-list-page__header p {
   margin: 4px 0 28px;
   color: var(--color-text-secondary);
+}
+
+.map-list-page__guide-link {
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.map-list-page__guide-link:hover {
+  background: var(--color-surface-sunken);
 }
 
 .map-list-page__create {

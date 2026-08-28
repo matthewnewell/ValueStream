@@ -1,0 +1,149 @@
+.guide-page {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.guide-page__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.guide-page__back {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.guide-page__back:hover {
+  background: var(--color-surface-sunken);
+}
+
+.guide-page__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+}
+
+.guide-page__content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+}
+
+.guide-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guide-section__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.guide-section__lede {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.guide-section__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.guide-section--caution {
+  background: var(--color-wait-soft);
+  border: 1px solid var(--color-wait);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+.guide-section--caution .guide-section__title {
+  color: var(--color-wait);
+}
+
+.guide-section--caution .guide-section__body {
+  color: var(--color-text-secondary);
+}
+
+.guide-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.guide-list--plain {
+  color: var(--color-text-secondary);
+}
+
+.guide-section--caution .guide-list {
+  color: var(--color-text-secondary);
+}
+
+.guide-section--caution .guide-list strong {
+  color: var(--color-wait);
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.guide-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-accent);
+}
+
+.guide-card__heading {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.guide-card__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}

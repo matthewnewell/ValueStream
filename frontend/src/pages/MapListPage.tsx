@@ -32,6 +32,9 @@ export default function MapListPage() {
           <h1>Value Stream</h1>
           <p>Visual value stream maps — find your bottlenecks.</p>
         </div>
+        <button className="map-list-page__guide-link" onClick={() => navigate('/guide')}>
+          📘 Theory of Operation
+        </button>
       </header>
 
       <div className="map-list-page__create">
