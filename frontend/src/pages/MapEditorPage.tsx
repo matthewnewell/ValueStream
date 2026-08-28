@@ -1,20 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import {
-  useCreateStep,
-  useExpandStep,
-  useHealth,
-  useMap,
-  useMapMetrics,
-  useUpdateMap,
-} from '../api/hooks'
+import { useCreateStep, useExpandStep, useMap, useMapMetrics, useUpdateMap } from '../api/hooks'
 import MapCanvas from '../components/MapCanvas'
 import MapToolbar from '../components/MapToolbar'
 import MetricsBar from '../components/MetricsBar'
 import StepDrawer from '../components/StepDrawer'
 import EdgeDrawer from '../components/EdgeDrawer'
-import InsightsPanel from '../components/InsightsPanel'
-import WaitContributorsPanel from '../components/WaitContributorsPanel'
 import './MapEditorPage.css'
 
 export default function MapEditorPage() {
@@ -22,15 +13,12 @@ export default function MapEditorPage() {
   const navigate = useNavigate()
   const { data: map, isLoading } = useMap(mapId)
   const { data: metrics, isLoading: metricsLoading } = useMapMetrics(mapId)
-  const { data: health } = useHealth()
   const updateMap = useUpdateMap(mapId ?? '')
   const createStep = useCreateStep(mapId ?? '')
   const expandStep = useExpandStep(mapId ?? '')
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [showInsights, setShowInsights] = useState(false)
-  const [showWaitPanel, setShowWaitPanel] = useState(false)
 
   if (!mapId) return null
   if (isLoading || !map) return <div className="map-editor-page__loading">Loading map…</div>
@@ -80,29 +68,7 @@ export default function MapEditorPage() {
         mapName={map.name}
         view="editor"
         onRenameMap={(name) => updateMap.mutate({ name })}
-        actions={
-          <>
-            <button onClick={handleAddStep}>+ Add step</button>
-            <button
-              className={showWaitPanel ? 'map-toolbar__action-btn--active' : ''}
-              onClick={() => {
-                setShowInsights(false)
-                setShowWaitPanel((v) => !v)
-              }}
-            >
-              ⏳ Wait contributors
-            </button>
-            <button
-              className={showInsights ? 'map-toolbar__action-btn--active' : ''}
-              onClick={() => {
-                setShowWaitPanel(false)
-                setShowInsights((v) => !v)
-              }}
-            >
-              ✨ Analyze bottlenecks
-            </button>
-          </>
-        }
+        actions={<button onClick={handleAddStep}>+ Add step</button>}
       />
 
       <MetricsBar metrics={metrics} isLoading={metricsLoading} />
@@ -138,23 +104,6 @@ export default function MapEditorPage() {
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelectedEdgeId(null)}
-          />
-        )}
-
-        {showWaitPanel && (
-          <WaitContributorsPanel
-            contributors={metrics?.wait_contributors ?? []}
-            waitByKind={metrics?.wait_by_kind_sec}
-            onClose={() => setShowWaitPanel(false)}
-            onSelectEdge={handleSelectEdge}
-          />
-        )}
-
-        {showInsights && (
-          <InsightsPanel
-            mapId={mapId}
-            aiConfigured={health?.ai_configured ?? false}
-            onClose={() => setShowInsights(false)}
           />
         )}
       </div>

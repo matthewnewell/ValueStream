@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
-  AiInsightsResult,
   AiSuggestResult,
   ChatMessage,
   ChatResult,
@@ -176,12 +175,6 @@ export function useHealth() {
 export function useAiSuggestStep() {
   return useMutation({
     mutationFn: (stepId: string) => api.post<AiSuggestResult>(`/steps/${stepId}/ai-suggest`),
-  })
-}
-
-export function useAiInsights(mapId: string) {
-  return useMutation({
-    mutationFn: () => api.post<AiInsightsResult>(`/maps/${mapId}/ai-insights`),
   })
 }
 
