@@ -25,8 +25,9 @@ optional and off by default — the app is fully usable without it.
 
 ## Tech stack
 
-- **Backend**: Python 3.12 / Flask / SQLAlchemy / SQLite (WAL mode), optional Anthropic Claude
-  or Ollama for AI-assisted parameter suggestions and narrative bottleneck analysis
+- **Backend**: Python 3.12 / Flask / SQLAlchemy / SQLite (WAL mode), optional Anthropic Claude,
+  Google Gemini, or Ollama for AI-assisted parameter suggestions, narrative bottleneck
+  analysis, and the conversational chat on BLUF
 - **Frontend**: React + TypeScript, [React Flow](https://reactflow.dev) for the interactive
   canvas, TanStack Query for server state
 - Matches the on-prem-friendly, AI-optional posture of this project's sibling app,
@@ -54,8 +55,9 @@ Run backend tests: `cd backend && .venv/bin/python -m pytest tests/ -v`
 
 ### Configuration
 
-Copy `backend/.env.example` to `backend/.env` to configure AI assistance (`AI_PROVIDER=claude`
-or `ollama`). Leave it unset (`none`, the default) to run with AI features off.
+Copy `backend/.env.example` to `backend/.env` to configure AI assistance
+(`AI_PROVIDER=claude`, `gemini`, or `ollama`). Leave it unset (`none`, the default) to run
+with AI features off.
 
 ## Status
 
