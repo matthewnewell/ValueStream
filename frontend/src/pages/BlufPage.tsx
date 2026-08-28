@@ -1,12 +1,12 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useMap, useMapMetrics } from '../api/hooks'
+import MapToolbar from '../components/MapToolbar'
 import VsmTimeline from '../components/VsmTimeline'
 import { formatDuration } from '../lib/duration'
 import './BlufPage.css'
 
 export default function BlufPage() {
   const { mapId } = useParams<{ mapId: string }>()
-  const navigate = useNavigate()
   const { data: map, isLoading: mapLoading } = useMap(mapId)
   const { data: metrics, isLoading: metricsLoading } = useMapMetrics(mapId)
 
@@ -20,15 +20,7 @@ export default function BlufPage() {
 
   return (
     <div className="bluf-page">
-      <div className="bluf-page__toolbar">
-        <button className="bluf-page__back" onClick={() => navigate('/')}>
-          ← Maps
-        </button>
-        <h1 className="bluf-page__title">{map.name} — BLUF</h1>
-        <button className="bluf-page__edit-btn" onClick={() => navigate(`/maps/${mapId}`)}>
-          ✏️ Edit map
-        </button>
-      </div>
+      <MapToolbar mapId={mapId} mapName={map.name} view="bluf" />
 
       <div className="bluf-page__content">
         <section className="bluf-section">

@@ -1,0 +1,112 @@
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.map-toolbar__back {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.map-toolbar__back:hover {
+  background: var(--color-surface-sunken);
+}
+
+.map-toolbar__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-toolbar__title-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  background: transparent;
+}
+
+.map-toolbar__title-input:hover,
+.map-toolbar__title-input:focus {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  outline: none;
+}
+
+.map-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.map-toolbar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.map-toolbar__actions button {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.map-toolbar__actions button:hover {
+  background: var(--color-surface-sunken);
+}
+
+.map-toolbar__action-btn--active {
+  background: var(--color-accent) !important;
+  color: white;
+  border-color: var(--color-accent) !important;
+}
+
+.map-toolbar__view-toggle {
+  display: flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.map-toolbar__view-btn {
+  border: none;
+  background: var(--color-surface);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.map-toolbar__view-btn + .map-toolbar__view-btn {
+  border-left: 1px solid var(--color-border-strong);
+}
+
+.map-toolbar__view-btn:hover {
+  background: var(--color-surface-sunken);
+}
+
+.map-toolbar__view-btn--active {
+  background: var(--color-accent);
+  color: white;
+}

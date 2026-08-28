@@ -9,6 +9,7 @@ import {
   useUpdateMap,
 } from '../api/hooks'
 import MapCanvas from '../components/MapCanvas'
+import MapToolbar from '../components/MapToolbar'
 import MetricsBar from '../components/MetricsBar'
 import StepDrawer from '../components/StepDrawer'
 import EdgeDrawer from '../components/EdgeDrawer'
@@ -74,37 +75,35 @@ export default function MapEditorPage() {
 
   return (
     <div className="map-editor-page">
-      <div className="map-editor-page__toolbar">
-        <button className="map-editor-page__back" onClick={() => navigate(`/maps/${mapId}/bluf`)}>
-          ← BLUF
-        </button>
-        <input
-          className="map-editor-page__title"
-          value={map.name}
-          onChange={(e) => updateMap.mutate({ name: e.target.value })}
-        />
-        <div className="map-editor-page__toolbar-actions">
-          <button onClick={handleAddStep}>+ Add step</button>
-          <button
-            className={showWaitPanel ? 'map-editor-page__insights-btn--active' : ''}
-            onClick={() => {
-              setShowInsights(false)
-              setShowWaitPanel((v) => !v)
-            }}
-          >
-            ⏳ Wait contributors
-          </button>
-          <button
-            className={showInsights ? 'map-editor-page__insights-btn--active' : ''}
-            onClick={() => {
-              setShowWaitPanel(false)
-              setShowInsights((v) => !v)
-            }}
-          >
-            ✨ Analyze bottlenecks
-          </button>
-        </div>
-      </div>
+      <MapToolbar
+        mapId={mapId}
+        mapName={map.name}
+        view="editor"
+        onRenameMap={(name) => updateMap.mutate({ name })}
+        actions={
+          <>
+            <button onClick={handleAddStep}>+ Add step</button>
+            <button
+              className={showWaitPanel ? 'map-toolbar__action-btn--active' : ''}
+              onClick={() => {
+                setShowInsights(false)
+                setShowWaitPanel((v) => !v)
+              }}
+            >
+              ⏳ Wait contributors
+            </button>
+            <button
+              className={showInsights ? 'map-toolbar__action-btn--active' : ''}
+              onClick={() => {
+                setShowWaitPanel(false)
+                setShowInsights((v) => !v)
+              }}
+            >
+              ✨ Analyze bottlenecks
+            </button>
+          </>
+        }
+      />
 
       <MetricsBar metrics={metrics} isLoading={metricsLoading} />
 
