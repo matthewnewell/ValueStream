@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { useAiInsights, useHealth, useMap, useMapMetrics } from '../api/hooks'
+import { useMap, useMapMetrics } from '../api/hooks'
 import VsmTimeline from '../components/VsmTimeline'
 import { formatDuration } from '../lib/duration'
 import './BlufPage.css'
@@ -9,8 +9,6 @@ export default function BlufPage() {
   const navigate = useNavigate()
   const { data: map, isLoading: mapLoading } = useMap(mapId)
   const { data: metrics, isLoading: metricsLoading } = useMapMetrics(mapId)
-  const { data: health } = useHealth()
-  const aiInsights = useAiInsights(mapId ?? '')
 
   if (!mapId) return null
   if (mapLoading || metricsLoading || !map || !metrics) {
@@ -111,19 +109,6 @@ export default function BlufPage() {
         </section>
 
         <section className="bluf-section">
-          <h2 className="bluf-section__title">Why wait time compounds — Little's Law</h2>
-          <p className="bluf-section__body">
-            Little's Law states <code>Lead Time = WIP ÷ Throughput Rate</code>: the more work
-            sitting in queue at once, the longer any single piece waits, independent of how
-            fast any one step runs. This app tracks a single part's journey — it doesn't model
-            order volume or how many units are in process at once, so there's no number to show
-            you here. But it's the reason a "fast" process can still have a terrible lead time:
-            queues compound faster than intuition expects. If the wait segments below are large,
-            that's very likely Little's Law showing up in your own value stream, not a fluke.
-          </p>
-        </section>
-
-        <section className="bluf-section">
           <div className="bluf-section__header-row">
             <h2 className="bluf-section__title">
               Wait Contributors ({metrics.wait_contributors.length})
@@ -192,39 +177,6 @@ export default function BlufPage() {
                 </tbody>
               </table>
             </>
-          )}
-        </section>
-
-        <section className="bluf-section">
-          <div className="bluf-section__header-row">
-            <h2 className="bluf-section__title">✨ AI Narrative</h2>
-            {health?.ai_configured && (
-              <button
-                className="bluf-section__ai-btn"
-                onClick={() => aiInsights.mutate()}
-                disabled={aiInsights.isPending}
-              >
-                {aiInsights.isPending ? 'Analyzing…' : aiInsights.data ? 'Re-analyze' : 'Analyze'}
-              </button>
-            )}
-          </div>
-          {!health?.ai_configured && (
-            <p className="bluf-section__body bluf-section__body--muted">
-              AI is not configured for this instance — everything above is computed without it.
-              Set <code>AI_PROVIDER</code> to enable a written narrative here too.
-            </p>
-          )}
-          {aiInsights.data?.narrative && (
-            <div className="bluf-section__narrative">
-              {aiInsights.data.narrative.split('\n').map((line, i) => (
-                <p key={i}>{line}</p>
-              ))}
-            </div>
-          )}
-          {aiInsights.data?.error && (
-            <p className="bluf-section__body bluf-section__body--error">
-              {aiInsights.data.error}
-            </p>
           )}
         </section>
       </div>
