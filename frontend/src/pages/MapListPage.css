@@ -21,6 +21,13 @@
   color: var(--color-text-secondary);
 }
 
+.map-list-page__header-links {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
 .map-list-page__guide-link {
   flex-shrink: 0;
   border: 1px solid var(--color-border-strong);
@@ -29,7 +36,6 @@
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
-  margin-top: 4px;
 }
 
 .map-list-page__guide-link:hover {

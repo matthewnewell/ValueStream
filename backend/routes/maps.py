@@ -17,13 +17,29 @@ _EMPTY_ROLLUP = {"lead_time_sec": 0.0, "total_human_time_sec": 0.0, "total_machi
 def list_maps():
     # A map that some step has expanded into a sub-process shouldn't clutter the top-level
     # map list — it's reached by drilling into that step, not by picking it off this list.
+    # Templates are excluded the same way: they live in the map library (GET /maps/templates),
+    # reached by cloning, not by picking one off the project list.
     child_map_ids = db.session.query(Step.child_map_id).filter(Step.child_map_id.isnot(None))
     maps = (
         Map.query.filter(~Map.id.in_(child_map_ids))
+        .filter(Map.is_template.is_(False))
         .order_by(Map.updated_at.desc())
         .all()
     )
     return jsonify([m.to_dict(include_graph=False) for m in maps])
+
+
+@bp.get("/templates")
+def list_templates():
+    """The map library: reusable starting points, grouped by template_category. Never shown
+    in the main list — cloned via the same POST /<id>/duplicate every other map uses, which
+    always drops is_template on the copy (see duplicate_map)."""
+    templates = (
+        Map.query.filter(Map.is_template.is_(True))
+        .order_by(Map.template_category, Map.name)
+        .all()
+    )
+    return jsonify([m.to_dict(include_graph=False) for m in templates])
 
 
 def compute_metrics_recursive(map_obj: Map, _visited: frozenset[str] | None = None) -> dict:
@@ -139,6 +155,9 @@ def duplicate_map(map_id):
     body = request.get_json(silent=True) or {}
     new_name = (body.get("name") or f"{src.name} (copy)").strip()
 
+    # is_template/template_category are deliberately NOT copied: cloning a template (or any
+    # map) always produces a normal, editable project map, defaulting to is_template=False.
+    # That's what keeps "cloned from the library" from silently becoming "another template."
     new_map = Map(name=new_name, description=src.description)
     db.session.add(new_map)
     db.session.flush()  # assign new_map.id without committing yet
@@ -174,6 +193,7 @@ def duplicate_map(map_id):
                 wait_time_sec=e.wait_time_sec,
                 label=e.label,
                 kind=e.kind,
+                wait_kind=e.wait_kind,
             )
         )
 
@@ -259,6 +279,7 @@ def import_map():
                 wait_time_sec=e.get("wait_time_sec", 0.0),
                 label=e.get("label"),
                 kind=e.get("kind", "flow"),
+                wait_kind=e.get("wait_kind"),
             )
         )
 

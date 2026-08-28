@@ -32,9 +32,14 @@ export default function MapListPage() {
           <h1>Value Stream</h1>
           <p>Visual value stream maps — find your bottlenecks.</p>
         </div>
-        <button className="map-list-page__guide-link" onClick={() => navigate('/guide')}>
-          📘 Theory of Operation
-        </button>
+        <div className="map-list-page__header-links">
+          <button className="map-list-page__guide-link" onClick={() => navigate('/library')}>
+            📚 Map Library
+          </button>
+          <button className="map-list-page__guide-link" onClick={() => navigate('/guide')}>
+            📘 Theory of Operation
+          </button>
+        </div>
       </header>
 
       <div className="map-list-page__create">
@@ -64,7 +69,7 @@ export default function MapListPage() {
               <span>Updated {new Date(m.updated_at).toLocaleDateString()}</span>
             </div>
             <div className="map-card__actions" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => duplicateMap.mutate(m.id)}>Duplicate</button>
+              <button onClick={() => duplicateMap.mutate({ id: m.id })}>Duplicate</button>
               <button className="map-card__delete" onClick={() => handleDelete(m.id, m.name)}>
                 Delete
               </button>

@@ -5,6 +5,13 @@ export interface MapSummary {
   created_at: string
   updated_at: string
   step_count: number
+  /** Library maps (seeded or promoted starting points) never appear in the main map list —
+   * see GET /api/maps/templates. Cloning one (the same duplicate endpoint every map uses)
+   * always produces a normal map with is_template false. */
+  is_template: boolean
+  /** Cosmetic grouping label for the library UI (e.g. "Technical Processes"). Null on
+   * ordinary project maps. */
+  template_category: string | null
 }
 
 export interface Step {

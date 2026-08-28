@@ -21,6 +21,14 @@ export function useMaps() {
   })
 }
 
+/** The map library — reusable starting points, never mixed into useMaps() above. */
+export function useTemplateMaps() {
+  return useQuery({
+    queryKey: ['maps', 'templates'],
+    queryFn: () => api.get<MapSummary[]>('/maps/templates'),
+  })
+}
+
 export function useMap(mapId: string | undefined) {
   return useQuery({
     queryKey: ['maps', mapId],
@@ -83,7 +91,8 @@ export function useDeleteMap() {
 export function useDuplicateMap() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (mapId: string) => api.post<MapDetail>(`/maps/${mapId}/duplicate`),
+    mutationFn: ({ id, name }: { id: string; name?: string }) =>
+      api.post<MapDetail>(`/maps/${id}/duplicate`, name ? { name } : undefined),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['maps'] }),
   })
 }

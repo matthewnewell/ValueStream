@@ -39,6 +39,8 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 _MIGRATIONS = [
     ("step", "child_map_id", "ALTER TABLE step ADD COLUMN child_map_id VARCHAR(36) REFERENCES map(id)"),
     ("edge", "wait_kind", "ALTER TABLE edge ADD COLUMN wait_kind VARCHAR(20)"),
+    ("map", "is_template", "ALTER TABLE map ADD COLUMN is_template BOOLEAN NOT NULL DEFAULT 0"),
+    ("map", "template_category", "ALTER TABLE map ADD COLUMN template_category VARCHAR(100)"),
 ]
 
 

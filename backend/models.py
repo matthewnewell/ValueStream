@@ -35,6 +35,15 @@ class Map(db.Model):
     created_at = db.Column(db.DateTime, default=_now, nullable=False)
     updated_at = db.Column(db.DateTime, default=_now, onupdate=_now, nullable=False)
 
+    # A template is a reusable starting point (seeded, or promoted from a real project map)
+    # that lives in the map library instead of the main map list — see GET /api/maps/templates.
+    # It's cloned via the same POST /<id>/duplicate every other map uses; the clone always
+    # comes back with is_template=False (see duplicate_map), so "template-ness" never spreads
+    # past the copy you started from. template_category is a cosmetic grouping label for the
+    # library UI only (e.g. "Technical Processes") — nothing in the engine reads it.
+    is_template = db.Column(db.Boolean, default=False, nullable=False)
+    template_category = db.Column(db.String(100), nullable=True)
+
     # `Step` now has two FKs pointing at `map.id` (its owning `map_id`, and the optional
     # `child_map_id` a step uses to point *down* into a sub-process) — foreign_keys must be
     # explicit here or SQLAlchemy can't tell which one this "owning map" relationship means.
@@ -57,6 +66,8 @@ class Map(db.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "step_count": len(self.steps),
+            "is_template": self.is_template,
+            "template_category": self.template_category,
         }
         if include_graph:
             d["steps"] = [s.to_dict() for s in self.steps]
