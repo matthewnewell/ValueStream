@@ -41,6 +41,11 @@ _MIGRATIONS = [
     ("edge", "wait_kind", "ALTER TABLE edge ADD COLUMN wait_kind VARCHAR(20)"),
     ("map", "is_template", "ALTER TABLE map ADD COLUMN is_template BOOLEAN NOT NULL DEFAULT 0"),
     ("map", "template_category", "ALTER TABLE map ADD COLUMN template_category VARCHAR(100)"),
+    # Project context a map belongs to — plain labels, not entities. Each ecosystem app keeps
+    # its own copy of this (the Depot is the system of record), tied together by convention,
+    # not a shared table. See models.Map.
+    ("map", "portfolio", "ALTER TABLE map ADD COLUMN portfolio VARCHAR(200)"),
+    ("map", "project", "ALTER TABLE map ADD COLUMN project VARCHAR(200)"),
 ]
 
 

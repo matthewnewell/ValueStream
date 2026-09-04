@@ -1,4 +1,4 @@
-.guide-page {
+.splash-page {
   height: 100%;
   min-height: 0;
   display: flex;
@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 
-.guide-page__toolbar {
+.splash-page__toolbar {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -15,29 +15,14 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.guide-page__back {
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-
-.guide-page__back:hover {
-  background: var(--color-surface-sunken);
-}
-
-.guide-page__title {
+.splash-page__title {
   flex: 1;
   min-width: 0;
   margin: 0;
   font-size: 18px;
 }
 
-.guide-page__content {
+.splash-page__content {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
@@ -50,47 +35,43 @@
   width: 100%;
 }
 
-.guide-section {
+.splash-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.guide-section__title {
+.splash-section__title {
   margin: 0;
   font-size: 15px;
 }
 
-.guide-section__lede {
+.splash-section__lede {
   margin: 0;
   font-size: 15px;
   line-height: 1.7;
   color: var(--color-text);
 }
 
-.guide-section__body {
+.splash-section__body {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
   color: var(--color-text-secondary);
 }
 
-.guide-section--caution {
+.splash-section--caution {
   background: var(--color-wait-soft);
   border: 1px solid var(--color-wait);
   border-radius: var(--radius-lg);
   padding: 18px 20px;
 }
 
-.guide-section--caution .guide-section__title {
+.splash-section--caution .splash-section__title {
   color: var(--color-wait);
 }
 
-.guide-section--caution .guide-section__body {
-  color: var(--color-text-secondary);
-}
-
-.guide-list {
+.splash-list {
   margin: 0;
   padding-left: 20px;
   display: flex;
@@ -100,25 +81,25 @@
   line-height: 1.6;
 }
 
-.guide-list--plain {
+.splash-list--plain {
   color: var(--color-text-secondary);
 }
 
-.guide-section--caution .guide-list {
+.splash-section--caution .splash-list {
   color: var(--color-text-secondary);
 }
 
-.guide-section--caution .guide-list strong {
+.splash-section--caution .splash-list strong {
   color: var(--color-wait);
 }
 
-.guide-grid {
+.splash-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 14px;
 }
 
-.guide-card {
+.splash-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -128,7 +109,7 @@
   gap: 6px;
 }
 
-.guide-card__label {
+.splash-card__label {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -136,12 +117,12 @@
   color: var(--color-accent);
 }
 
-.guide-card__heading {
+.splash-card__heading {
   font-size: 15px;
   font-weight: 700;
 }
 
-.guide-card__body {
+.splash-card__body {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;

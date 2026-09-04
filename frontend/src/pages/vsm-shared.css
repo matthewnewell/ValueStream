@@ -1,0 +1,164 @@
+/* Shared building blocks for the top-level pages (map list, library, admin). Mirrors Conway's
+   Depot's depot-shared.css so the sibling apps read as a family. */
+
+.vsm-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.vsm-page__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vsm-page__title {
+  margin: 0;
+  font-size: 18px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vsm-page__intro {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.vsm-loading,
+.vsm-empty {
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* ── buttons ── */
+.vsm-btn {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.vsm-btn:hover {
+  background: var(--color-accent-hover);
+}
+.vsm-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.vsm-btn--ghost {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-strong);
+}
+.vsm-btn--ghost:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+.vsm-btn--danger {
+  background: var(--color-surface);
+  color: var(--color-critical);
+  border-color: var(--color-critical-soft);
+}
+.vsm-btn--danger:hover {
+  background: var(--color-critical-soft);
+}
+
+/* ── checkbox filter (matches Depot's Portfolio filter) ── */
+.vsm-checkbox-filter {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.vsm-checkbox-filter__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+}
+
+.vsm-checkbox-filter__option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.vsm-checkbox-filter__option input {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* ── table ── */
+.vsm-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.vsm-table thead th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+  background: var(--color-surface-sunken);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.vsm-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.vsm-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.vsm-table tbody tr.vsm-table__row--clickable {
+  cursor: pointer;
+}
+
+.vsm-table tbody tr.vsm-table__row--clickable:hover {
+  background: var(--color-accent-soft);
+}
+
+.vsm-table__strong {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.vsm-table__muted {
+  color: var(--color-text-faint);
+}
+
+.vsm-table__desc {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  max-width: 420px;
+}

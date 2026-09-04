@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMap, useMapMetrics, usePromoteMap } from '../api/hooks'
 import MapToolbar from '../components/MapToolbar'
@@ -19,8 +20,11 @@ export default function BlufPage() {
 
   const db = metrics.deepest_bottleneck
   const isNested = db && db.breadcrumb.length > 1
+  // When the real bottleneck lives inside a sub-process, the last breadcrumb hop is the map
+  // that actually holds it — drilling in lands on that map's BLUF.
+  const bottleneckMapId = isNested ? db.breadcrumb[db.breadcrumb.length - 1].map_id : null
 
-  // Promoting is the "closeout -> library" step from the Theory of Operation page: a finished
+  // Promoting is the "closeout -> library" step described on the splash page: a finished
   // project's map, with its real recorded numbers, becomes next project's starting point
   // instead of a zero scaffold. It's a copy, never a move — this map stays exactly as-is.
   function handlePromote() {
@@ -84,7 +88,22 @@ export default function BlufPage() {
             </div>
           </div>
 
-          <div className="bluf-card bluf-card--bottleneck">
+          <div
+            className={`bluf-card bluf-card--bottleneck${bottleneckMapId ? ' bluf-card--drillable' : ''}`}
+            {...(bottleneckMapId
+              ? {
+                  role: 'button',
+                  tabIndex: 0,
+                  onClick: () => navigate(`/maps/${bottleneckMapId}/bluf`),
+                  onKeyDown: (e: KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      navigate(`/maps/${bottleneckMapId}/bluf`)
+                    }
+                  },
+                }
+              : {})}
+          >
             <div className="bluf-card__label" title="The busiest single work step — the constraint on throughput. Not necessarily what's driving the calendar; see Dominant Delay for that.">
               Capacity Bottleneck
             </div>
@@ -102,6 +121,7 @@ export default function BlufPage() {
                         .slice(0, -1)
                         .map((h) => h.step_name)
                         .join(' › ')}
+                      {bottleneckMapId && <span className="bluf-card__drill"> ⤵ drill in</span>}
                     </>
                   )}
                 </div>

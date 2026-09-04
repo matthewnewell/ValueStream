@@ -22,7 +22,7 @@ export default function MapToolbar({ mapId, mapName, view, onRenameMap, actions 
 
   return (
     <div className="map-toolbar">
-      <button className="map-toolbar__back" onClick={() => navigate('/')}>
+      <button className="map-toolbar__back" onClick={() => navigate('/maps')}>
         ← Maps
       </button>
 

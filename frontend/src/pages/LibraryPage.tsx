@@ -32,9 +32,6 @@ export default function LibraryPage() {
   return (
     <div className="library-page">
       <div className="library-page__toolbar">
-        <button className="library-page__back" onClick={() => navigate('/')}>
-          ← Maps
-        </button>
         <h1 className="library-page__title">Map Library</h1>
       </div>
 

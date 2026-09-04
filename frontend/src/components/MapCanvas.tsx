@@ -10,6 +10,7 @@ import {
   type Connection,
   type EdgeMouseHandler,
   type NodeMouseHandler,
+  type OnNodeDrag,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
@@ -127,7 +128,7 @@ function MapCanvasInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialEdges])
 
-  const handleNodeDragStop = (_: React.MouseEvent, node: ProcessNodeType) => {
+  const handleNodeDragStop: OnNodeDrag<ProcessNodeType> = (_, node) => {
     updateStep.mutate({
       stepId: node.id,
       data: { pos_x: node.position.x, pos_y: node.position.y },

@@ -1,5 +1,11 @@
 import os
 
+from dotenv import load_dotenv
+
+# Load backend/.env if present. Only fills vars not already set in the environment, so a
+# docker-compose / target-environment export always wins over a checked-out .env file.
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
 from flask import Flask, send_from_directory
 
 from db import init_db

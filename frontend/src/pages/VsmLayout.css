@@ -1,0 +1,12 @@
+.vsm-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.vsm-layout__main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

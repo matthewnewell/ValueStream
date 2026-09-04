@@ -12,6 +12,11 @@ export interface MapSummary {
   /** Cosmetic grouping label for the library UI (e.g. "Technical Processes"). Null on
    * ordinary project maps. */
   template_category: string | null
+  /** Which portfolio / project this value stream belongs to — plain labels Value Stream keeps
+   * its own copy of (the Depot is the ecosystem's project system of record). Null on templates
+   * and unfiled maps. The main list groups and filters on these. */
+  portfolio: string | null
+  project: string | null
 }
 
 export interface Step {

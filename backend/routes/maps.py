@@ -108,7 +108,12 @@ def create_map():
     if not name:
         return jsonify({"error": "name is required"}), 400
 
-    m = Map(name=name, description=body.get("description"))
+    m = Map(
+        name=name,
+        description=body.get("description"),
+        portfolio=(body.get("portfolio") or None),
+        project=(body.get("project") or None),
+    )
     db.session.add(m)
     db.session.commit()
     return jsonify(m.to_dict()), 201
@@ -132,6 +137,10 @@ def update_map(map_id):
         m.name = name
     if "description" in body:
         m.description = body["description"]
+    if "portfolio" in body:
+        m.portfolio = (body["portfolio"] or "").strip() or None
+    if "project" in body:
+        m.project = (body["project"] or "").strip() or None
 
     db.session.commit()
     return jsonify(m.to_dict())
@@ -156,6 +165,10 @@ def _deep_copy_map(src: Map, *, name: str, is_template: bool = False, template_c
     new_map = Map(
         name=name, description=src.description,
         is_template=is_template, template_category=template_category,
+        # A duplicate keeps its project context; a promotion into the library drops it — a
+        # template is a generic starting point, not filed under the project it came from.
+        portfolio=None if is_template else src.portfolio,
+        project=None if is_template else src.project,
     )
     db.session.add(new_map)
     db.session.flush()  # assign new_map.id without committing yet

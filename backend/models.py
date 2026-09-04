@@ -44,6 +44,15 @@ class Map(db.Model):
     is_template = db.Column(db.Boolean, default=False, nullable=False)
     template_category = db.Column(db.String(100), nullable=True)
 
+    # Which portfolio / project this value stream belongs to — plain text labels, not links to
+    # entities. Value Stream stays unaware of Conway's Depot (the ecosystem's project system of
+    # record); it keeps its own copy of this context, the same way BurnedValue and Launchpad
+    # do, tied together only by convention. Null on templates and on maps not yet filed under
+    # a project. The map library groups on template_category instead; the main list groups and
+    # filters on these.
+    portfolio = db.Column(db.String(200), nullable=True)
+    project = db.Column(db.String(200), nullable=True)
+
     # `Step` now has two FKs pointing at `map.id` (its owning `map_id`, and the optional
     # `child_map_id` a step uses to point *down* into a sub-process) — foreign_keys must be
     # explicit here or SQLAlchemy can't tell which one this "owning map" relationship means.
@@ -68,6 +77,8 @@ class Map(db.Model):
             "step_count": len(self.steps),
             "is_template": self.is_template,
             "template_category": self.template_category,
+            "portfolio": self.portfolio,
+            "project": self.project,
         }
         if include_graph:
             d["steps"] = [s.to_dict() for s in self.steps]

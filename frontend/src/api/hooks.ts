@@ -65,7 +65,7 @@ function useInvalidateMap(mapId: string | undefined) {
 export function useCreateMap() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; description?: string }) =>
+    mutationFn: (data: { name: string; description?: string; portfolio?: string; project?: string }) =>
       api.post<MapDetail>('/maps', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['maps'] }),
   })
@@ -74,8 +74,12 @@ export function useCreateMap() {
 export function useUpdateMap(mapId: string) {
   const invalidate = useInvalidateMap(mapId)
   return useMutation({
-    mutationFn: (data: { name?: string; description?: string }) =>
-      api.put<MapDetail>(`/maps/${mapId}`, data),
+    mutationFn: (data: {
+      name?: string
+      description?: string | null
+      portfolio?: string | null
+      project?: string | null
+    }) => api.put<MapDetail>(`/maps/${mapId}`, data),
     onSuccess: invalidate,
   })
 }

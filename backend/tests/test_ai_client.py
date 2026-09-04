@@ -5,7 +5,11 @@ added when Gemini support was requested, since it's the one most likely to have 
 bug (role names and payload shape differ from Anthropic's) and the one with zero manual
 curl-script coverage elsewhere (check_chat.sh only runs against AI_PROVIDER=none).
 
-No network calls: httpx.post is monkeypatched so these run without a real API key.
+Also covers the Google Cloud/ADC fallback (used when AI_API_KEY is unset) added for a target
+environment that has no shareable API key.
+
+No network calls: httpx.post and the cloud SDK client are monkeypatched so these run without
+real credentials.
 """
 
 import os
@@ -77,8 +81,46 @@ def test_gemini_uses_model_env_override():
     gemini_response = {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}
 
     with patch.object(ai_client, "AI_PROVIDER", "gemini"), \
+         patch.object(ai_client, "AI_API_KEY", "fake-key"), \
          patch.object(ai_client, "AI_MODEL", "gemini-2.5-pro"), \
          patch("httpx.post", return_value=_fake_response(gemini_response)) as mock_post:
         ai_client.chat(messages=[{"role": "user", "content": "hi"}])
 
     assert "gemini-2.5-pro" in mock_post.call_args.args[0]
+
+
+def test_gemini_cloud_sdk_path_used_when_no_api_key():
+    """No AI_API_KEY set → falls through to the Google Cloud SDK path, not the REST endpoint."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = "cloud analysis reply"
+    mock_client.models.generate_content.return_value = mock_resp
+
+    with patch.object(ai_client, "AI_PROVIDER", "gemini"), \
+         patch.object(ai_client, "AI_API_KEY", ""), \
+         patch.object(ai_client, "_get_genai_client", return_value=mock_client):
+        reply = ai_client.chat(
+            messages=[{"role": "user", "content": "analyze stage"}],
+            system="VSM expert",
+        )
+
+    assert reply == "cloud analysis reply"
+    mock_client.models.generate_content.assert_called_once()
+
+
+def test_get_genai_client_requires_project_env_var():
+    """No GOOGLE_CLOUD_PROJECT set → no cloud client, regardless of the SDK being installed."""
+    with patch.object(ai_client, "_genai_client", None), \
+         patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("GOOGLE_CLOUD_PROJECT", None)
+        assert ai_client._get_genai_client() is None
+
+
+def test_gemini_reports_unconfigured_when_no_key_and_no_credentials():
+    with patch.object(ai_client, "AI_PROVIDER", "gemini"), \
+         patch.object(ai_client, "AI_API_KEY", ""), \
+         patch.object(ai_client, "_get_genai_client", return_value=None):
+        reply = ai_client.chat(messages=[{"role": "user", "content": "hi"}])
+
+    assert "not usable" in reply
+    assert "GOOGLE_CLOUD_PROJECT" in reply
