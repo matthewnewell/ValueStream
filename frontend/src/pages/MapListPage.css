@@ -2,28 +2,26 @@
    column sizing specific to the map list. */
 
 .vsm-table th:nth-child(1),
-.vsm-table td:nth-child(1),
-.vsm-table th:nth-child(2),
-.vsm-table td:nth-child(2) {
+.vsm-table td:nth-child(1) {
   white-space: nowrap;
   color: var(--color-text-secondary);
   width: 1%;
 }
 
-.vsm-table th:nth-child(3),
-.vsm-table td:nth-child(3) {
+.vsm-table th:nth-child(2),
+.vsm-table td:nth-child(2) {
   min-width: 200px;
 }
 
 /* Description is the column that gives when space is tight. */
-.vsm-table td:nth-child(4) {
+.vsm-table td:nth-child(3) {
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
 @media (max-width: 720px) {
-  .vsm-table th:nth-child(4),
-  .vsm-table td:nth-child(4) {
+  .vsm-table th:nth-child(3),
+  .vsm-table td:nth-child(3) {
     display: none;
   }
 }

@@ -7,9 +7,9 @@ import './MapListPage.css'
 // A map with no portfolio still needs a checkbox to filter on.
 const NO_PORTFOLIO = ' none' as const
 
-/** The value stream list — every live map, filed under its portfolio and project. Click a row
- * to open its BLUF. Creating, duplicating, and deleting maps live in Admin, not here: this is
- * a read-first list for finding a value stream, not managing the set of them. */
+/** The value stream list — every live map, filed under its project. Click a row to open its
+ * BLUF. Creating, duplicating, and deleting maps live in Admin, not here: this is a read-first
+ * list for finding a value stream, not managing the set of them. */
 export default function MapListPage() {
   const navigate = useNavigate()
   const { data: maps, isLoading } = useMaps()
@@ -46,15 +46,6 @@ export default function MapListPage() {
 
   return (
     <div className="vsm-page">
-      <div className="vsm-page__toolbar">
-        <h1 className="vsm-page__title">Value Stream Maps</h1>
-      </div>
-
-      <p className="vsm-page__intro">
-        Every value stream the tool tracks, filed under its portfolio and project. Click a row
-        for its BLUF — the executive summary.
-      </p>
-
       {portfolios.length > 1 && (
         <div className="vsm-checkbox-filter">
           <span className="vsm-checkbox-filter__label">Portfolio</span>
@@ -84,7 +75,6 @@ export default function MapListPage() {
         <table className="vsm-table">
           <thead>
             <tr>
-              <th>Portfolio</th>
               <th>Project</th>
               <th>Value stream</th>
               <th>Description</th>
@@ -97,7 +87,6 @@ export default function MapListPage() {
                 className="vsm-table__row--clickable"
                 onClick={() => navigate(`/maps/${m.id}/bluf`)}
               >
-                <td>{m.portfolio ?? <span className="vsm-table__muted">—</span>}</td>
                 <td>{m.project ?? <span className="vsm-table__muted">—</span>}</td>
                 <td className="vsm-table__strong">{m.name}</td>
                 <td className="vsm-table__desc">
