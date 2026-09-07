@@ -13,7 +13,12 @@ from routes.ai import bp as ai_bp
 from routes.edges import bp as edges_bp
 from routes.maps import bp as maps_bp
 from routes.steps import bp as steps_bp
-from seed import seed_if_empty, seed_templates_if_missing
+from seed import (
+    ensure_sample_map_tagged,
+    seed_if_empty,
+    seed_published_exemplar_if_missing,
+    seed_templates_if_missing,
+)
 
 FRONTEND_DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist")
 
@@ -32,6 +37,8 @@ def create_app():
     with app.app_context():
         seed_if_empty()
         seed_templates_if_missing()
+        seed_published_exemplar_if_missing()
+        ensure_sample_map_tagged()
 
     @app.get("/api/health")
     def health():

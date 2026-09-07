@@ -1,8 +1,19 @@
 #!/bin/bash
+# Edge wait_kind (internal/external) + metrics.wait_by_kind_sec + slip_amplification.
+# Runs against a throwaway working map cloned from the published cast-bracket exemplar, so it
+# doesn't depend on whatever happens to be first in the main list (and the sample map is
+# read-only anyway).
 set -e
 BASE=http://localhost:8080/api
-MAP_ID=$(curl -s $BASE/maps | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+
+PUB_ID=$(curl -s "$BASE/maps/library" | python3 -c "
+import json, sys
+print(next(m['id'] for m in json.load(sys.stdin) if m['lifecycle'] == 'published'))
+")
+MAP_ID=$(curl -s -X POST "$BASE/maps/$PUB_ID/clone" -H 'Content-Type: application/json' \
+  -d '{"project":"wait_kind smoke test"}' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
 echo "map: $MAP_ID"
+trap 'curl -s -X DELETE "$BASE/maps/$MAP_ID" -o /dev/null' EXIT
 
 curl -s $BASE/maps/$MAP_ID | python3 -c "
 import json,sys
@@ -14,10 +25,7 @@ for e in d['edges']:
 " > /tmp/edges.txt
 cat /tmp/edges.txt
 
-# Categorize: PO approval edges = internal, foundry/distributor edges = external, QA hold = internal
-while IFS=$'\t' read -r id rest; do :; done
-
-PO1=$(grep "PO approval" /tmp/edges.txt | grep "Long-Lead" | awk '{print $1}')
+PO1=$(grep "PO approval" /tmp/edges.txt | grep "Cast Housing" | awk '{print $1}')
 PO2=$(grep "PO approval" /tmp/edges.txt | grep "Standard" | awk '{print $1}')
 FOUNDRY=$(grep "foundry" /tmp/edges.txt | awk '{print $1}')
 DIST=$(grep "distributor" /tmp/edges.txt | awk '{print $1}')
@@ -32,7 +40,6 @@ curl -s -X PUT $BASE/edges/$QA -H 'Content-Type: application/json' -d '{"wait_ki
 
 echo "== invalid wait_kind should 400 =="
 curl -s -w "\nHTTP_STATUS:%{http_code}\n" -X PUT $BASE/edges/$QA -H 'Content-Type: application/json' -d '{"wait_kind":"bogus"}'
-# restore
 curl -s -X PUT $BASE/edges/$QA -H 'Content-Type: application/json' -d '{"wait_kind":"internal"}' > /dev/null
 
 echo "== metrics: wait_by_kind_sec + slip_amplification =="

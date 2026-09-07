@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useMap, useMapMetrics, usePromoteMap } from '../api/hooks'
+import { useMap, useMapMetrics, usePublishMap } from '../api/hooks'
 import MapToolbar from '../components/MapToolbar'
 import VsmTimeline from '../components/VsmTimeline'
 import { formatDuration } from '../lib/duration'
@@ -11,7 +11,7 @@ export default function BlufPage() {
   const navigate = useNavigate()
   const { data: map, isLoading: mapLoading } = useMap(mapId)
   const { data: metrics, isLoading: metricsLoading } = useMapMetrics(mapId)
-  const promoteMap = usePromoteMap(mapId ?? '')
+  const publishMap = usePublishMap(mapId ?? '')
 
   if (!mapId) return null
   if (mapLoading || metricsLoading || !map || !metrics) {
@@ -24,17 +24,29 @@ export default function BlufPage() {
   // that actually holds it — drilling in lands on that map's BLUF.
   const bottleneckMapId = isNested ? db.breadcrumb[db.breadcrumb.length - 1].map_id : null
 
-  // Promoting is the "closeout -> library" step described on the splash page: a finished
-  // project's map, with its real recorded numbers, becomes next project's starting point
-  // instead of a zero scaffold. It's a copy, never a move — this map stays exactly as-is.
-  function handlePromote() {
+  // Publishing is the "closeout -> library" step described on the splash page: a finished
+  // project's map, with its real recorded numbers, becomes the next project's starting point
+  // instead of a zero scaffold. It's a copy, never a move — this working map stays exactly
+  // as-is. Publishing again overwrites the prior snapshot.
+  function handlePublish() {
+    if (!map) return
+    const blankSteps = map.steps.filter(
+      (s) => !s.child_map_id && s.human_time_sec + s.machine_time_sec === 0,
+    )
+    if (blankSteps.length > 0) {
+      const ok = window.confirm(
+        `${blankSteps.length} step${blankSteps.length === 1 ? ' has' : 's have'} no recorded ` +
+          'time yet. A published map is meant to carry real numbers forward — publish anyway?',
+      )
+      if (!ok) return
+    }
     const category = window.prompt(
-      'Promote this map to the library as a reusable template. The original stays exactly ' +
-        'as-is — this creates a copy.\n\nLibrary category (optional), e.g. "Technical ' +
-        'Processes" — leave blank for "Other":',
+      'Publish this finished map to the Map Library so other projects can clone it. This ' +
+        'working map stays exactly as-is — publishing creates a copy.\n\nLibrary category ' +
+        '(optional), e.g. "Hardware Fabrication":',
     )
     if (category === null) return // cancelled
-    promoteMap.mutate(
+    publishMap.mutate(
       { template_category: category.trim() || undefined },
       { onSuccess: () => navigate('/library') },
     )
@@ -46,10 +58,11 @@ export default function BlufPage() {
         mapId={mapId}
         mapName={map.name}
         view="bluf"
+        readOnly={map.read_only}
         actions={
-          !map.is_template && (
-            <button onClick={handlePromote} disabled={promoteMap.isPending}>
-              📚 Promote to Library
+          map.lifecycle === 'working' && (
+            <button onClick={handlePublish} disabled={publishMap.isPending}>
+              📚 Publish to Library
             </button>
           )
         }

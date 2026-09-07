@@ -26,6 +26,18 @@ def _now():
     return datetime.now(timezone.utc)
 
 
+# A map's place in the lifecycle. Only `working` maps are editable and only they show in the
+# main map list (Admin). The other three are read-only:
+#   working    — a live project's map; the PM builds and runs it
+#   published  — a frozen snapshot contributed to the library at project closeout (a copy of a
+#                working map, carrying its real recorded numbers), cloned to seed a new project
+#   featured   — an org-issued generic scaffold (the ISO/IEC/IEEE 15288 starter maps); never
+#                belonged to a real project
+#   sample     — the single canned demo map the nav's "Sample Map" opens, so someone evaluating
+#                the tool has one representative map to look at without opening the catalog
+MAP_LIFECYCLES = ("working", "published", "featured", "sample")
+
+
 class Map(db.Model):
     __tablename__ = "map"
 
@@ -35,14 +47,33 @@ class Map(db.Model):
     created_at = db.Column(db.DateTime, default=_now, nullable=False)
     updated_at = db.Column(db.DateTime, default=_now, onupdate=_now, nullable=False)
 
-    # A template is a reusable starting point (seeded, or promoted from a real project map)
-    # that lives in the map library instead of the main map list — see GET /api/maps/templates.
-    # It's cloned via the same POST /<id>/duplicate every other map uses; the clone always
-    # comes back with is_template=False (see duplicate_map), so "template-ness" never spreads
-    # past the copy you started from. template_category is a cosmetic grouping label for the
-    # library UI only (e.g. "Technical Processes") — nothing in the engine reads it.
+    # Where this map sits in the lifecycle — see MAP_LIFECYCLES above. This is the field the
+    # routes filter and gate on: the main list is lifecycle == "working", the library is
+    # "featured" + "published", the nav's Sample Map is the one "sample" row, and anything not
+    # "working" is read-only.
+    lifecycle = db.Column(db.String(20), nullable=False, default="working")
+
+    # Legacy flag, kept in sync (True iff lifecycle == "featured") so the older smoke tests and
+    # any external reader still work — new code reads `lifecycle`, not this. template_category
+    # is a cosmetic grouping label for the library UI (e.g. "Technical Processes" for a featured
+    # scaffold, or a fabrication family for a published project map); nothing in the engine
+    # reads it. The clone/publish routes always set both this and lifecycle together.
     is_template = db.Column(db.Boolean, default=False, nullable=False)
     template_category = db.Column(db.String(100), nullable=True)
+
+    # For a map cloned out of the library into a project: which library map it came from. Powers
+    # the library's "Used by N projects" count (distinct projects among the working maps that
+    # point here). Null on maps not cloned from the library. ON DELETE SET NULL so removing a
+    # library entry doesn't cascade into its clones.
+    cloned_from_map_id = db.Column(
+        db.String(36), db.ForeignKey("map.id", ondelete="SET NULL"), nullable=True
+    )
+    # For a published snapshot: the working map it was published from. Republishing that working
+    # map overwrites the snapshot (delete the old, write a fresh one) — this is how it's found.
+    published_from_map_id = db.Column(
+        db.String(36), db.ForeignKey("map.id", ondelete="SET NULL"), nullable=True
+    )
+    published_at = db.Column(db.DateTime, nullable=True)
 
     # Which portfolio / project this value stream belongs to — plain text labels, not links to
     # entities. Value Stream stays unaware of Conway's Depot (the ecosystem's project system of
@@ -67,6 +98,12 @@ class Map(db.Model):
         "Edge", backref="map", cascade="all, delete-orphan", lazy="selectin"
     )
 
+    @property
+    def read_only(self) -> bool:
+        """Only a working map can be edited. Published snapshots, featured scaffolds, and the
+        sample map are frozen — clone one into a project to make changes."""
+        return self.lifecycle != "working"
+
     def to_dict(self, include_graph: bool = True) -> dict:
         d = {
             "id": self.id,
@@ -75,10 +112,15 @@ class Map(db.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "step_count": len(self.steps),
+            "lifecycle": self.lifecycle,
+            "read_only": self.read_only,
             "is_template": self.is_template,
             "template_category": self.template_category,
             "portfolio": self.portfolio,
             "project": self.project,
+            "cloned_from_map_id": self.cloned_from_map_id,
+            "published_from_map_id": self.published_from_map_id,
+            "published_at": self.published_at.isoformat() if self.published_at else None,
         }
         if include_graph:
             d["steps"] = [s.to_dict() for s in self.steps]

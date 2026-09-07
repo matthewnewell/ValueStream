@@ -1,3 +1,10 @@
+/** Where a map sits in the lifecycle (see backend models.MAP_LIFECYCLES):
+ *  - working   — a live project's map; the only editable kind, the only kind in the main list
+ *  - published — a frozen snapshot contributed to the library at closeout, with real numbers
+ *  - featured  — an org-issued generic 15288 scaffold
+ *  - sample    — the single read-only demo map the nav's "Sample Map" opens */
+export type MapLifecycle = 'working' | 'published' | 'featured' | 'sample'
+
 export interface MapSummary {
   id: string
   name: string
@@ -5,18 +12,32 @@ export interface MapSummary {
   created_at: string
   updated_at: string
   step_count: number
-  /** Library maps (seeded or promoted starting points) never appear in the main map list —
-   * see GET /api/maps/templates. Cloning one (the same duplicate endpoint every map uses)
-   * always produces a normal map with is_template false. */
+  lifecycle: MapLifecycle
+  /** True for anything but a working map — the editor and the mutating routes are closed off.
+   * Clone a library map into a project to get an editable copy. */
+  read_only: boolean
+  /** Legacy flag, kept in sync with `lifecycle === 'featured'`. New code branches on
+   * `lifecycle`; this is only still here for older callers. */
   is_template: boolean
-  /** Cosmetic grouping label for the library UI (e.g. "Technical Processes"). Null on
-   * ordinary project maps. */
+  /** Cosmetic grouping label for the library UI (a 15288 family for a featured scaffold, a
+   * fabrication family for a published project map). Null on ordinary working maps. */
   template_category: string | null
   /** Which portfolio / project this value stream belongs to — plain labels Value Stream keeps
-   * its own copy of (the Depot is the ecosystem's project system of record). Null on templates
-   * and unfiled maps. The main list groups and filters on these. */
+   * its own copy of (the Depot is the ecosystem's project system of record). Null on featured
+   * scaffolds and unfiled maps. */
   portfolio: string | null
   project: string | null
+  /** For a map cloned out of the library: which library map it came from. */
+  cloned_from_map_id: string | null
+  /** For a published snapshot: the working map it was published from (republish overwrites). */
+  published_from_map_id: string | null
+  published_at: string | null
+}
+
+/** A Map Library entry (GET /api/maps/library) — a featured scaffold or a published project
+ * snapshot, plus how many projects have cloned it. */
+export interface LibraryEntry extends MapSummary {
+  used_by_projects: number
 }
 
 export interface Step {

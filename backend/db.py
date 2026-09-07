@@ -46,7 +46,33 @@ _MIGRATIONS = [
     # not a shared table. See models.Map.
     ("map", "portfolio", "ALTER TABLE map ADD COLUMN portfolio VARCHAR(200)"),
     ("map", "project", "ALTER TABLE map ADD COLUMN project VARCHAR(200)"),
+    # Map lifecycle (working / published / featured / sample) — see models.MAP_LIFECYCLES. The
+    # column lands defaulted to 'working'; _backfill below promotes the existing library
+    # templates to 'featured', and seed.py tags the demo map 'sample'.
+    ("map", "lifecycle", "ALTER TABLE map ADD COLUMN lifecycle VARCHAR(20) NOT NULL DEFAULT 'working'"),
+    ("map", "cloned_from_map_id", "ALTER TABLE map ADD COLUMN cloned_from_map_id VARCHAR(36) REFERENCES map(id)"),
+    ("map", "published_from_map_id", "ALTER TABLE map ADD COLUMN published_from_map_id VARCHAR(36) REFERENCES map(id)"),
+    ("map", "published_at", "ALTER TABLE map ADD COLUMN published_at DATETIME"),
 ]
+
+
+def _backfill(app):
+    """Data fixups the additive migrations above imply but ALTER TABLE can't express. Idempotent
+    and cheap — safe to run every startup."""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        if "map" not in set(inspector.get_table_names()):
+            return
+        cols = {c["name"] for c in inspector.get_columns("map")}
+        if not {"lifecycle", "is_template"} <= cols:
+            return
+        with db.engine.begin() as conn:
+            # Library templates predate the lifecycle column, so the ALTER left them 'working'.
+            # is_template has only ever been set on the seeded 15288 scaffolds → 'featured'.
+            conn.execute(text(
+                "UPDATE map SET lifecycle='featured' "
+                "WHERE is_template=1 AND lifecycle='working'"
+            ))
 
 
 def _run_migrations(app):
@@ -74,3 +100,4 @@ def init_db(app):
         db.create_all()
 
     _run_migrations(app)
+    _backfill(app)

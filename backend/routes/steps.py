@@ -3,6 +3,8 @@ from flask import Blueprint, jsonify, request
 from db import db
 from models import Edge, Map, Step
 
+from .guards import writable_or_403
+
 bp = Blueprint("steps", __name__)
 
 _EDITABLE_FIELDS = {
@@ -14,6 +16,8 @@ _EDITABLE_FIELDS = {
 @bp.post("/api/maps/<map_id>/steps")
 def create_step(map_id):
     Map.query.get_or_404(map_id)  # 404 if the map doesn't exist
+    if resp := writable_or_403(map_id):
+        return resp
     body = request.get_json(force=True) or {}
     name = (body.get("name") or "").strip()
     if not name:
@@ -39,6 +43,8 @@ def create_step(map_id):
 @bp.put("/api/steps/<step_id>")
 def update_step(step_id):
     step = Step.query.get_or_404(step_id)
+    if resp := writable_or_403(step.map_id):
+        return resp
     body = request.get_json(force=True) or {}
 
     # Partial merge: only touch fields present in the body. Position-drag autosave sends
@@ -58,6 +64,8 @@ def update_step(step_id):
 @bp.delete("/api/steps/<step_id>")
 def delete_step(step_id):
     step = Step.query.get_or_404(step_id)
+    if resp := writable_or_403(step.map_id):
+        return resp
     # Edges aren't owned by Step (only Map.steps/Map.edges cascade), so any edge touching this
     # step as source or target must be removed explicitly first, or the FK (foreign_keys=ON)
     # would reject the delete.
@@ -78,6 +86,8 @@ def expand_step(step_id):
     own Requirements Analysis -> Trade Study -> ... sub-process". Returns the new map so the
     frontend can navigate straight into it."""
     step = Step.query.get_or_404(step_id)
+    if resp := writable_or_403(step.map_id):
+        return resp
     if step.child_map_id:
         return jsonify({"error": "this step already has a sub-process — open it instead of expanding again"}), 400
 
@@ -98,6 +108,8 @@ def collapse_step(step_id):
     """Delete this step's child map (and everything in it) and unlink it, turning the step
     back into a plain leaf. Destructive — the frontend confirms before calling this."""
     step = Step.query.get_or_404(step_id)
+    if resp := writable_or_403(step.map_id):
+        return resp
     if not step.child_map_id:
         return jsonify({"error": "this step has no sub-process to collapse"}), 400
 

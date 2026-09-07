@@ -23,6 +23,16 @@ optional and off by default — the app is fully usable without it.
   reported separately from the **critical path** (the longest total-time path) — they often
   aren't the same step, and knowing that is the point.
 
+### Maps and the library
+
+Every map has a **lifecycle**: `working` (a live project's map — the only editable kind,
+managed from **Admin**), `published` (a frozen snapshot contributed to the library at project
+closeout, carrying the project's real recorded numbers), `featured` (an org-issued generic
+ISO/IEC/IEEE 15288 scaffold), or `sample` (the one read-only demo map the nav's **Sample Map**
+opens). The **Map Library** shows the featured scaffolds and published project maps together,
+each with a "used by N projects" count; cloning one produces a fresh `working` map filed under
+a project. Publishing a finished map again overwrites its snapshot rather than duplicating it.
+
 ## Tech stack
 
 - **Backend**: Python 3.12 / Flask / SQLAlchemy / SQLite (WAL mode), optional Anthropic Claude,

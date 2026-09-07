@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useCreateStep, useExpandStep, useMap, useMapMetrics, useUpdateMap } from '../api/hooks'
 import MapCanvas from '../components/MapCanvas'
 import MapToolbar from '../components/MapToolbar'
@@ -22,6 +22,9 @@ export default function MapEditorPage() {
 
   if (!mapId) return null
   if (isLoading || !map) return <div className="map-editor-page__loading">Loading map…</div>
+  // A published snapshot, a featured scaffold, or the sample map has no editor — send it to
+  // BLUF. (The nav and library never link here for one; this covers a hand-typed URL.)
+  if (map.read_only) return <Navigate to={`/maps/${mapId}/bluf`} replace />
 
   const selectedStep = map.steps.find((s) => s.id === selectedStepId) ?? null
   const selectedEdge = map.edges.find((e) => e.id === selectedEdgeId) ?? null

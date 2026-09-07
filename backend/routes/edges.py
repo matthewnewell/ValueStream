@@ -3,6 +3,8 @@ from flask import Blueprint, jsonify, request
 from db import db
 from models import Edge, Map, Step
 
+from .guards import writable_or_403
+
 bp = Blueprint("edges", __name__)
 
 _WAIT_KINDS = {"internal", "external"}
@@ -20,6 +22,8 @@ def _validate_wait_kind(body: dict) -> str | None:
 @bp.post("/api/maps/<map_id>/edges")
 def create_edge(map_id):
     Map.query.get_or_404(map_id)
+    if resp := writable_or_403(map_id):
+        return resp
     body = request.get_json(force=True) or {}
 
     source_id = body.get("source_step_id")
@@ -57,6 +61,8 @@ def create_edge(map_id):
 @bp.put("/api/edges/<edge_id>")
 def update_edge(edge_id):
     edge = Edge.query.get_or_404(edge_id)
+    if resp := writable_or_403(edge.map_id):
+        return resp
     body = request.get_json(force=True) or {}
     if err := _validate_wait_kind(body):
         return jsonify({"error": err}), 400
@@ -77,6 +83,8 @@ def update_edge(edge_id):
 @bp.delete("/api/edges/<edge_id>")
 def delete_edge(edge_id):
     edge = Edge.query.get_or_404(edge_id)
+    if resp := writable_or_403(edge.map_id):
+        return resp
     db.session.delete(edge)
     db.session.commit()
     return "", 204

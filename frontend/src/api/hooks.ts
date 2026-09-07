@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   ChatResult,
   Edge,
+  LibraryEntry,
   MapBreadcrumbEntry,
   MapDetail,
   MapMetrics,
@@ -21,11 +22,21 @@ export function useMaps() {
   })
 }
 
-/** The map library — reusable starting points, never mixed into useMaps() above. */
-export function useTemplateMaps() {
+/** The Map Library — featured 15288 scaffolds + published project snapshots, each with a
+ * "used by N projects" count. Never mixed into useMaps() above. */
+export function useMapLibrary() {
   return useQuery({
-    queryKey: ['maps', 'templates'],
-    queryFn: () => api.get<MapSummary[]>('/maps/templates'),
+    queryKey: ['maps', 'library'],
+    queryFn: () => api.get<LibraryEntry[]>('/maps/library'),
+  })
+}
+
+/** The one read-only demo map the nav's "Sample Map" opens. */
+export function useSampleMap() {
+  return useQuery({
+    queryKey: ['maps', 'sample'],
+    queryFn: () => api.get<MapSummary>('/maps/sample'),
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -101,16 +112,37 @@ export function useDuplicateMap() {
   })
 }
 
-/** Promotes a finished project into the library: a COPY, is_template=true on the copy only —
- * the source map (mapId here) is untouched and stays a normal map. See routes/maps.py's
- * promote_map_to_template for why this carries real recorded numbers forward instead of a
- * zero scaffold. */
-export function usePromoteMap(mapId: string) {
+/** Clone a library map (featured scaffold or published snapshot) into a project — a fresh
+ * working map, filed under the target project, that counts toward the source's "used by N". */
+export function useCloneFromLibrary() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      portfolio,
+      project,
+      name,
+    }: { id: string; portfolio?: string; project?: string; name?: string }) =>
+      api.post<MapDetail>(`/maps/${id}/clone`, { portfolio, project, name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['maps'] })
+      qc.invalidateQueries({ queryKey: ['maps', 'library'] })
+    },
+  })
+}
+
+/** Publish a finished working map into the library: a frozen COPY carrying its real recorded
+ * numbers. The working map (mapId) is untouched. Publishing it again overwrites the snapshot.
+ * See routes/maps.py's publish_map. */
+export function usePublishMap(mapId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: { template_category?: string; name?: string }) =>
-      api.post<MapDetail>(`/maps/${mapId}/promote`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['maps', 'templates'] }),
+      api.post<MapDetail>(`/maps/${mapId}/publish`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['maps', 'library'] })
+      qc.invalidateQueries({ queryKey: ['maps', mapId] })
+    },
   })
 }
 

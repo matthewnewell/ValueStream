@@ -10,7 +10,7 @@ parallel, with the long-lead item usually turning out to be the real bottleneck.
 """
 
 from db import db
-from models import Edge, Map, Step
+from models import Edge, Map, Step, _now
 
 HOUR = 3600
 DAY = 86400
@@ -27,6 +27,9 @@ def seed_if_empty():
             "parallel procurement of a long-lead custom casting and standard fasteners, "
             "assembly/machining, and shipment."
         ),
+        # The one read-only "Sample Map" the nav links to — a representative map to look at
+        # without opening the library. Not tied to a live project.
+        lifecycle="sample",
         # Matches the demo project the sibling apps (Conway's Depot, Launchpad) also carry —
         # same project, each app's own copy of the label, tied together by convention.
         portfolio="Industrial Programs",
@@ -114,6 +117,7 @@ def _seed_agreement_template():
             "sequence; treat this as a simplified starting scaffold. Clone it, then adjust the "
             "shape and fill in real durations for your agreement."
         ),
+        lifecycle="featured",
         is_template=True,
         template_category=_15288_AGREEMENT,
     )
@@ -149,6 +153,7 @@ def _seed_technical_management_template():
             "between kickoff and closeout instead of a false chain. Clone it, then adjust to "
             "fit how your project actually runs them."
         ),
+        lifecycle="featured",
         is_template=True,
         template_category=_15288_TECH_MGMT,
     )
@@ -212,6 +217,7 @@ def _seed_technical_processes_template():
             "Analysis through Disposal, in clause order. This family is the most naturally "
             "linear of the three — a reasonable default chain to clone and customize."
         ),
+        lifecycle="featured",
         is_template=True,
         template_category=_15288_TECHNICAL,
     )
@@ -273,4 +279,100 @@ def seed_templates_if_missing():
         if name in existing:
             continue
         builder()
+    db.session.commit()
+
+
+def ensure_sample_map_tagged():
+    """Idempotent fixup for a DB created before the lifecycle column existed: the seeded demo
+    map should be the one read-only 'sample'. No-op once it's tagged (or if it was deleted)."""
+    demo = Map.query.filter(Map.name.like("Demo:%")).first()
+    if demo is not None and demo.lifecycle != "sample":
+        demo.lifecycle = "sample"
+        db.session.commit()
+
+
+# ── A published project snapshot + two clones, so the library isn't empty on first run ─────
+#
+# The "closeout -> library -> clone" story only reads if the library actually contains a
+# finished project's map with real numbers, and something has cloned it. This seeds one:
+# a closed-out cast-bracket program (same shape as the sample, different recorded actuals),
+# plus two working maps cloned from it under other projects — so the library shows
+# "Used by 2 projects" against it from the start.
+
+_PUBLISHED_NAME = "Cast Bracket Program — Closed Out (FY24)"
+
+
+def _seed_published_bracket_exemplar():
+    published = Map(
+        name=_PUBLISHED_NAME,
+        description=(
+            "Finished value stream from a closed-out custom cast-bracket build, published to "
+            "the library as a starting point for similar programs. Numbers are the actuals "
+            "recorded on the program, not a scaffold."
+        ),
+        lifecycle="published",
+        template_category="Hardware Fabrication",
+        portfolio="Industrial Programs",
+        project="Meridian Antenna Bracket (FY24)",
+        published_at=_now(),
+    )
+    db.session.add(published)
+    db.session.flush()
+
+    def build_flow(m: Map, *, design_h, cast_wait, build_h, build_m, qa_wait):
+        design = Step(map_id=m.id, name="Design",
+                      description="Engineering finalizes the bracket drawing and BOM.",
+                      pos_x=40, pos_y=220, human_time_sec=design_h * HOUR)
+        cast = Step(map_id=m.id, name="Procure — Cast Housing",
+                    description="Sole-source custom aluminum casting from an external foundry.",
+                    pos_x=380, pos_y=60, human_time_sec=2 * HOUR)
+        std = Step(map_id=m.id, name="Procure — Standard Hardware",
+                   description="Off-the-shelf fasteners and bushings from a stocked distributor.",
+                   pos_x=380, pos_y=380, human_time_sec=1 * HOUR)
+        build = Step(map_id=m.id, name="Build",
+                     description="Assemble the casting and hardware; CNC finish-machine mounting holes.",
+                     pos_x=720, pos_y=220, human_time_sec=build_h * HOUR,
+                     machine_time_sec=build_m * HOUR, operators=2, machines=1)
+        ship = Step(map_id=m.id, name="Ship",
+                    description="Final inspection, pack, generate shipping docs, hand off to carrier.",
+                    pos_x=1040, pos_y=220, human_time_sec=2 * HOUR)
+        db.session.add_all([design, cast, std, build, ship])
+        db.session.flush()
+        db.session.add_all([
+            Edge(map_id=m.id, source_step_id=design.id, target_step_id=cast.id,
+                 wait_time_sec=1 * DAY, label="PO approval", wait_kind="internal"),
+            Edge(map_id=m.id, source_step_id=design.id, target_step_id=std.id,
+                 wait_time_sec=0.5 * DAY, label="PO approval", wait_kind="internal"),
+            Edge(map_id=m.id, source_step_id=cast.id, target_step_id=build.id,
+                 wait_time_sec=cast_wait * DAY, label="foundry lead time", wait_kind="external"),
+            Edge(map_id=m.id, source_step_id=std.id, target_step_id=build.id,
+                 wait_time_sec=3 * DAY, label="distributor shipping", wait_kind="external"),
+            Edge(map_id=m.id, source_step_id=build.id, target_step_id=ship.id,
+                 wait_time_sec=qa_wait * DAY, label="QA hold", wait_kind="internal"),
+        ])
+
+    build_flow(published, design_h=20, cast_wait=25, build_h=10, build_m=5, qa_wait=2)
+
+    # Two working clones under other projects — the "cloned a finished map from a similar
+    # project" path, and what makes the library's "Used by 2 projects" real.
+    for proj in ("Coastal Radar Pedestal Bracket", "Rotor Test Fixture"):
+        clone = Map(
+            name="Cast Bracket Flow",
+            description=f"Cloned from {_PUBLISHED_NAME} at kickoff, then adjusted for this program.",
+            lifecycle="working",
+            portfolio="Industrial Programs",
+            project=proj,
+            cloned_from_map_id=published.id,
+        )
+        db.session.add(clone)
+        db.session.flush()
+        build_flow(clone, design_h=16, cast_wait=21, build_h=8, build_m=4, qa_wait=1)
+
+
+def seed_published_exemplar_if_missing():
+    """Idempotent: seed the published cast-bracket exemplar and its two clones once, keyed by
+    the published map's name so re-running never duplicates it."""
+    if db.session.query(Map.id).filter_by(name=_PUBLISHED_NAME).first():
+        return
+    _seed_published_bracket_exemplar()
     db.session.commit()

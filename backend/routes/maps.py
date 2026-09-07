@@ -1,8 +1,13 @@
+from datetime import datetime, timezone
+
 from flask import Blueprint, jsonify, request
+from sqlalchemy import func
 
 from db import db
 from engine import compute_metrics
 from models import Edge, Map, Step
+
+from .guards import writable_or_403
 
 bp = Blueprint("maps", __name__, url_prefix="/api/maps")
 
@@ -17,29 +22,74 @@ _EMPTY_ROLLUP = {"lead_time_sec": 0.0, "total_human_time_sec": 0.0, "total_machi
 def list_maps():
     # A map that some step has expanded into a sub-process shouldn't clutter the top-level
     # map list — it's reached by drilling into that step, not by picking it off this list.
-    # Templates are excluded the same way: they live in the map library (GET /maps/templates),
-    # reached by cloning, not by picking one off the project list.
+    # Library maps (featured / published) and the sample map are excluded the same way: the
+    # main list is working project maps only, managed from Admin. `?lifecycle=` overrides for
+    # tooling / tests; the default is what every UI caller wants.
+    lifecycle = request.args.get("lifecycle", "working")
     child_map_ids = db.session.query(Step.child_map_id).filter(Step.child_map_id.isnot(None))
     maps = (
         Map.query.filter(~Map.id.in_(child_map_ids))
-        .filter(Map.is_template.is_(False))
+        .filter(Map.lifecycle == lifecycle)
         .order_by(Map.updated_at.desc())
         .all()
     )
     return jsonify([m.to_dict(include_graph=False) for m in maps])
 
 
+def _clone_counts() -> dict[str, int]:
+    """{library_map_id: distinct projects that cloned it}. A working clone with no project
+    filed yet still counts once (keyed by its own id via coalesce)."""
+    rows = (
+        db.session.query(
+            Map.cloned_from_map_id,
+            func.count(func.distinct(func.coalesce(Map.project, Map.id))),
+        )
+        .filter(Map.cloned_from_map_id.isnot(None))
+        .group_by(Map.cloned_from_map_id)
+        .all()
+    )
+    return {mid: n for mid, n in rows}
+
+
+@bp.get("/library")
+def list_library():
+    """The Map Library: featured 15288 scaffolds + published project snapshots, each with a
+    "used by N projects" count. This is the browse-and-clone surface — cloning one (POST
+    /<id>/clone) produces a fresh working map filed under a project."""
+    maps = (
+        Map.query.filter(Map.lifecycle.in_(("featured", "published")))
+        .order_by(Map.lifecycle, Map.template_category, Map.name)
+        .all()
+    )
+    counts = _clone_counts()
+    out = []
+    for m in maps:
+        d = m.to_dict(include_graph=False)
+        d["used_by_projects"] = counts.get(m.id, 0)
+        out.append(d)
+    return jsonify(out)
+
+
 @bp.get("/templates")
 def list_templates():
-    """The map library: reusable starting points, grouped by template_category. Never shown
-    in the main list — cloned via the same POST /<id>/duplicate every other map uses, which
-    always drops is_template on the copy (see duplicate_map)."""
+    """Legacy: just the featured scaffolds (what the old library page fetched). New callers use
+    GET /maps/library, which also returns published project maps and clone counts."""
     templates = (
-        Map.query.filter(Map.is_template.is_(True))
+        Map.query.filter(Map.lifecycle == "featured")
         .order_by(Map.template_category, Map.name)
         .all()
     )
     return jsonify([m.to_dict(include_graph=False) for m in templates])
+
+
+@bp.get("/sample")
+def get_sample():
+    """The one canned demo map the nav's "Sample Map" opens — read-only, not tied to a project.
+    404 if none is configured (seed tags exactly one map lifecycle='sample')."""
+    m = Map.query.filter_by(lifecycle="sample").first()
+    if m is None:
+        return jsonify({"error": "no sample map is configured"}), 404
+    return jsonify(m.to_dict(include_graph=False))
 
 
 def compute_metrics_recursive(map_obj: Map, _visited: frozenset[str] | None = None) -> dict:
@@ -128,6 +178,8 @@ def get_map(map_id):
 @bp.put("/<map_id>")
 def update_map(map_id):
     m = Map.query.get_or_404(map_id)
+    if resp := writable_or_403(map_id):
+        return resp
     body = request.get_json(force=True) or {}
 
     if "name" in body:
@@ -158,17 +210,20 @@ def delete_map(map_id):
     return "", 204
 
 
-def _deep_copy_map(src: Map, *, name: str, is_template: bool = False, template_category: str | None = None) -> Map:
-    """Shared deep-copy mechanics for duplicate (plain copy, always is_template=False) and
-    promote (copy into the library, is_template=True) below — same graph copy, different
-    destination flags. Caller still owns the commit."""
+def _deep_copy_map(src: Map, *, name: str, lifecycle: str = "working", template_category: str | None = None) -> Map:
+    """Shared deep-copy mechanics for duplicate (plain working copy), clone (working copy out of
+    the library) and publish (a frozen 'published' snapshot) below — same graph copy, different
+    destination lifecycle. Caller still owns the commit, and sets cloned_from / published_from /
+    portfolio+project as the case needs."""
     new_map = Map(
         name=name, description=src.description,
-        is_template=is_template, template_category=template_category,
-        # A duplicate keeps its project context; a promotion into the library drops it — a
-        # template is a generic starting point, not filed under the project it came from.
-        portfolio=None if is_template else src.portfolio,
-        project=None if is_template else src.project,
+        lifecycle=lifecycle,
+        is_template=(lifecycle == "featured"),
+        template_category=template_category,
+        # A working copy or a published snapshot keeps the source's project context; a featured
+        # scaffold has none. (A library clone overwrites these with its target project.)
+        portfolio=src.portfolio if lifecycle in ("working", "published") else None,
+        project=src.project if lifecycle in ("working", "published") else None,
     )
     db.session.add(new_map)
     db.session.flush()  # assign new_map.id without committing yet
@@ -213,39 +268,68 @@ def _deep_copy_map(src: Map, *, name: str, is_template: bool = False, template_c
 
 @bp.post("/<map_id>/duplicate")
 def duplicate_map(map_id):
+    """Plain copy of a working map (Admin's "Duplicate"). Always a fresh working map, never
+    carrying cloned_from — that link means "cloned out of the library," which this isn't."""
     src = Map.query.get_or_404(map_id)
+    if src.lifecycle != "working":
+        return jsonify({"error": "only a working map can be duplicated — clone a library map instead"}), 400
     body = request.get_json(silent=True) or {}
     new_name = (body.get("name") or f"{src.name} (copy)").strip()
 
-    # is_template/template_category are deliberately NOT copied: cloning a template (or any
-    # map) always produces a normal, editable project map, defaulting to is_template=False.
-    # That's what keeps "cloned from the library" from silently becoming "another template."
-    new_map = _deep_copy_map(src, name=new_name)
+    new_map = _deep_copy_map(src, name=new_name, lifecycle="working")
 
     db.session.commit()
     return jsonify(new_map.to_dict()), 201
 
 
-@bp.post("/<map_id>/promote")
-def promote_map_to_template(map_id):
-    """The "closeout -> library" step from the Theory of Operation page: turn a finished
-    project into a reusable starting point for the next one. This is a COPY, not a move — the
-    original project map is left exactly where it was, still a normal map in the main list.
-    Unlike a from-scratch template, the copy carries the original's actual recorded numbers
-    forward (real durations, real wait times) rather than a zero scaffold — that's the whole
-    point of promoting a *finished* project instead of starting from an empty template."""
+@bp.post("/<map_id>/clone")
+def clone_from_library(map_id):
+    """Clone a library map (featured scaffold or published project snapshot) into a project:
+    a fresh working map, filed under the target portfolio / project, with cloned_from_map_id
+    pointing back at the source so the library can count "used by N projects"."""
     src = Map.query.get_or_404(map_id)
-    if src.is_template:
-        return jsonify({"error": "this map is already a library template"}), 400
+    if src.lifecycle not in ("featured", "published"):
+        return jsonify({"error": "only a library map can be cloned into a project"}), 400
+
+    body = request.get_json(silent=True) or {}
+    default_name = src.name.removeprefix("Template: ").strip()
+    new_name = (body.get("name") or default_name).strip()
+
+    new_map = _deep_copy_map(src, name=new_name, lifecycle="working")
+    new_map.cloned_from_map_id = src.id
+    new_map.portfolio = (body.get("portfolio") or "").strip() or None
+    new_map.project = (body.get("project") or "").strip() or None
+
+    db.session.commit()
+    return jsonify(new_map.to_dict()), 201
+
+
+@bp.post("/<map_id>/publish")
+@bp.post("/<map_id>/promote")  # legacy alias — the old "promote to library" name
+def publish_map(map_id):
+    """The "closeout -> library" step: turn a finished project's map into a reusable starting
+    point for the next one. A COPY, not a move — the working map stays exactly as it was in the
+    project's Admin list. Unlike a from-scratch scaffold, the snapshot carries the project's
+    real recorded numbers (durations, wait times) forward. Publishing the same working map
+    again OVERWRITES its prior snapshot rather than piling up duplicates."""
+    src = Map.query.get_or_404(map_id)
+    if src.lifecycle != "working":
+        return jsonify({"error": "only a working project map can be published to the library"}), 400
 
     body = request.get_json(silent=True) or {}
     category = (body.get("template_category") or "").strip() or None
-    new_name = (body.get("name") or f"Template: {src.name}").strip()
+    new_name = (body.get("name") or src.name).strip()
 
-    new_map = _deep_copy_map(src, name=new_name, is_template=True, template_category=category)
+    # Republish = overwrite: drop any existing snapshot published from this same working map.
+    for prior in Map.query.filter_by(published_from_map_id=src.id).all():
+        db.session.delete(prior)
+
+    snapshot = _deep_copy_map(src, name=new_name, lifecycle="published", template_category=category)
+    snapshot.published_from_map_id = src.id
+    snapshot.published_at = datetime.now(timezone.utc)
 
     db.session.commit()
-    return jsonify(new_map.to_dict()), 201
+    return jsonify(snapshot.to_dict()), 201
 
 
 @bp.get("/<map_id>/metrics")
