@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
-  AiSuggestResult,
   ChatMessage,
   ChatResult,
   Edge,
@@ -292,12 +291,6 @@ export function useHealth() {
 }
 
 // ── AI ───────────────────────────────────────────────────────────────────────
-
-export function useAiSuggestStep() {
-  return useMutation({
-    mutationFn: (stepId: string) => api.post<AiSuggestResult>(`/steps/${stepId}/ai-suggest`),
-  })
-}
 
 /** Conversation history lives entirely in the caller's React state, not here and not on the
  * server — each call sends the full message list so far and gets one reply back. The backend

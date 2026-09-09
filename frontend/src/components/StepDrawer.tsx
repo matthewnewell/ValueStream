@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Step, StepMetric } from '../api/types'
-import { useAiSuggestStep, useCollapseStep, useDeleteStep, useUpdateStep } from '../api/hooks'
+import { useCollapseStep, useDeleteStep, useUpdateStep } from '../api/hooks'
 import { formatDuration } from '../lib/duration'
 import { getAuthor, setAuthor } from '../lib/journal'
 import DurationInput from './DurationInput'
@@ -38,25 +38,19 @@ function toForm(step: Step): FormState {
 
 export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: StepDrawerProps) {
   const [form, setForm] = useState<FormState>(() => toForm(step))
-  const [aiRationale, setAiRationale] = useState<string | null>(null)
-  const [aiError, setAiError] = useState<string | null>(null)
   const [why, setWhy] = useState('')
   const [name, setName] = useState(getAuthor())
 
   const updateStep = useUpdateStep(mapId)
   const deleteStep = useDeleteStep(mapId)
   const collapseStep = useCollapseStep(mapId)
-  const aiSuggest = useAiSuggestStep()
 
   const hasChildMap = !!step.child_map_id
 
-  // Explicit Save, not autosave-on-type: deliberate, to avoid a race between the operator
-  // typing and an AI suggestion resolving into the same fields mid-edit. Reset the form
-  // whenever the operator switches to a different step (or the step is refetched post-save).
+  // Explicit Save, not autosave-on-type. Reset the form whenever the operator switches to a
+  // different step (or the step is refetched after a save).
   useEffect(() => {
     setForm(toForm(step))
-    setAiRationale(null)
-    setAiError(null)
     setWhy('')
   }, [step.id, step.human_time_sec, step.machine_time_sec, step.operators, step.machines, step.name, step.description])
 
@@ -97,27 +91,6 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
     collapseStep.mutate(step.id)
   }
 
-  function handleAiSuggest() {
-    setAiError(null)
-    aiSuggest.mutate(step.id, {
-      onSuccess: (result) => {
-        if (result.error) {
-          setAiError(result.error)
-          return
-        }
-        setForm((f) => ({
-          ...f,
-          human_time_sec: result.human_time_sec ?? f.human_time_sec,
-          machine_time_sec: result.machine_time_sec ?? f.machine_time_sec,
-          operators: result.operators ?? f.operators,
-          machines: result.machines ?? f.machines,
-        }))
-        setAiRationale(result.rationale ?? null)
-      },
-      onError: (err) => setAiError(err instanceof Error ? err.message : 'AI suggestion failed'),
-    })
-  }
-
   const processingTime = form.human_time_sec + form.machine_time_sec
 
   return (
@@ -146,7 +119,7 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         <textarea
           id="step-drawer-description"
           className="step-drawer__description"
-          placeholder="Describe this step (used as context for AI suggestions)…"
+          placeholder="Describe this step…"
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={2}
@@ -193,21 +166,7 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         <div className="step-drawer__section">
           <div className="step-drawer__section-header">
             <span>Processing time</span>
-            <button
-              className="step-drawer__ai-btn"
-              onClick={handleAiSuggest}
-              disabled={aiSuggest.isPending}
-            >
-              {aiSuggest.isPending ? 'Thinking…' : '✨ AI Suggest'}
-            </button>
           </div>
-
-          {aiError && <div className="step-drawer__ai-error">{aiError}</div>}
-          {aiRationale && (
-            <div className="step-drawer__ai-rationale">
-              <strong>AI suggestion applied (not yet saved):</strong> {aiRationale}
-            </div>
-          )}
 
           <div className="step-drawer__row">
             <DurationInput

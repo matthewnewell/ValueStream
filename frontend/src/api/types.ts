@@ -213,15 +213,6 @@ export interface MapMetrics {
   edge_count: number
 }
 
-export interface AiSuggestResult {
-  human_time_sec: number
-  machine_time_sec: number
-  operators: number
-  machines: number
-  rationale: string
-  error?: string
-}
-
 export interface AiInsightsResult {
   narrative: string
   metrics: MapMetrics

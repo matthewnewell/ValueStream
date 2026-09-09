@@ -1,59 +1,10 @@
 from flask import Blueprint, jsonify, request
 
 import ai_client
-from models import Map, Step
+from models import Map
 from routes.maps import compute_metrics_recursive
 
 bp = Blueprint("ai", __name__, url_prefix="/api")
-
-
-def _duration_hint(step: Step) -> str:
-    return (
-        f'Step name: "{step.name}"\n'
-        f"Description: {step.description or '(none provided)'}\n"
-        f"Current values — human processing time: {step.human_time_sec}s, "
-        f"machine processing time: {step.machine_time_sec}s, "
-        f"operators: {step.operators}, machines: {step.machines}"
-    )
-
-
-@bp.post("/steps/<step_id>/ai-suggest")
-def ai_suggest_step(step_id):
-    step = Step.query.get_or_404(step_id)
-
-    if not ai_client.is_configured():
-        return jsonify({"error": ai_client.NOT_CONFIGURED_MESSAGE}), 503
-
-    system = (
-        "You are an industrial/manufacturing process analyst helping an operator estimate "
-        "value-stream-mapping parameters for one process step. Given a step's name and "
-        "description, estimate realistic human processing time and machine processing time "
-        "in seconds (use large values for multi-day/week activities, e.g. a 2-week procurement "
-        "lead is ~1209600 seconds), plus a reasonable operator and machine count. "
-        "Wait/queue time is NOT part of this step — do not include it.\n\n"
-        'Reply with a JSON object with exactly these keys: '
-        '{"human_time_sec": <number>, "machine_time_sec": <number>, "operators": <integer>, '
-        '"machines": <integer>, "rationale": "<one or two sentence explanation>"}'
-    )
-    map_ctx = f' It is part of a value stream map named "{step.map.name}".' if step.map else ""
-    result = ai_client.chat_json(
-        messages=[{"role": "user", "content": _duration_hint(step) + map_ctx}],
-        system=system,
-        max_tokens=500,
-    )
-
-    if "error" in result:
-        return jsonify(result), 502
-
-    return jsonify(
-        {
-            "human_time_sec": result.get("human_time_sec"),
-            "machine_time_sec": result.get("machine_time_sec"),
-            "operators": result.get("operators"),
-            "machines": result.get("machines"),
-            "rationale": result.get("rationale"),
-        }
-    )
 
 
 def _build_context_lines(m: Map, metrics: dict) -> list[str]:
