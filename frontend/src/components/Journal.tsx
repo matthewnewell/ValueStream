@@ -75,7 +75,10 @@ export default function Journal({ mapId, target, editable, compact }: JournalPro
           ? { target_type: target.type, target_id: target.id, target_name: target.name }
           : { target_type: 'map' as const }),
       },
-      { onSuccess: () => setText('') },
+      {
+        onSuccess: () => setText(''),
+        onError: (err) => console.error('[journal] add note failed', err),
+      },
     )
   }
 
@@ -90,14 +93,18 @@ export default function Journal({ mapId, target, editable, compact }: JournalPro
         <div className="journal__composer">
           <textarea
             className="journal__input"
-            rows={compact ? 2 : 2}
+            rows={2}
             placeholder={
               scoped ? 'Note something about this element…' : 'What happened? A slip, a decision, a call…'
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit()
+              // Enter posts; Shift+Enter (or Cmd/Ctrl+Enter) for a newline.
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                submit()
+              }
             }}
           />
           <div className="journal__composer-row">
@@ -118,7 +125,18 @@ export default function Journal({ mapId, target, editable, compact }: JournalPro
               {addEvent.isPending ? 'Adding…' : 'Add note'}
             </button>
           </div>
+          {addEvent.isError && (
+            <p className="journal__error">
+              Couldn't add the note: {(addEvent.error as Error)?.message ?? 'unknown error'}
+            </p>
+          )}
         </div>
+      )}
+
+      {deleteEvent.isError && (
+        <p className="journal__error">
+          Couldn't delete that entry: {(deleteEvent.error as Error)?.message ?? 'unknown error'}
+        </p>
       )}
 
       {isLoading ? (

@@ -1,4 +1,3 @@
-import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { MapDetail, MapMetrics } from '../api/types'
 import { formatDuration, formatDurationCompact } from '../lib/duration'
@@ -16,14 +15,14 @@ interface VsmTimelineProps {
   selectedId?: string | null
 }
 
-// SVG geometry. Work steps sit high and tall; waits drop lower and shorter — the classic VSM
-// sawtooth. Segment widths are proportional to duration, but a tiny step is floored to a
-// readable minimum; the one big segment (usually the dominant wait) flexes to fill whatever
-// width the container gives us. Below MIN_CONTENT_W the whole thing scrolls sideways instead.
+// SVG geometry, in a fixed coordinate system that CSS then scales to fit the container (so a
+// drawer opening or the window resizing never leaves it overflowing). Segment widths are
+// proportional to duration, but a tiny step is floored to a readable minimum; the one big
+// segment (usually the dominant wait) takes the slack.
 const PAD = 12
-const MIN_CONTENT_W = 520
-const MIN_WORK_W = 84
-const MIN_WAIT_W = 46
+const TRACK_W = 760 // nominal drawable width the proportional scale targets
+const MIN_WORK_W = 76
+const MIN_WAIT_W = 42
 const WORK_Y = 6
 const WORK_H = 58
 const WAIT_Y = 40
@@ -63,29 +62,6 @@ export default function VsmTimeline({
 }: VsmTimelineProps) {
   const navigate = useNavigate()
 
-  // Track the scroll container's width so the timeline fills it and re-flexes when it changes.
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [availW, setAvailW] = useState(900)
-  const remeasure = () => {
-    const w = scrollRef.current?.clientWidth
-    if (w) setAvailW((prev) => (w !== prev ? w : prev))
-  }
-  // After every render — catches the chat-panel toggle, breadcrumb appearing, data refetch.
-  useLayoutEffect(remeasure)
-  // Plus the window resize / element resize the render path can't see on its own.
-  useLayoutEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(remeasure) : null
-    ro?.observe(el)
-    window.addEventListener('resize', remeasure)
-    return () => {
-      ro?.disconnect()
-      window.removeEventListener('resize', remeasure)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const stepsById = new Map(map.steps.map((s) => [s.id, s]))
   const edgesById = new Map(map.edges.map((e) => [e.id, e]))
   const pathSteps = metrics.critical_path_step_ids
@@ -119,7 +95,7 @@ export default function VsmTimeline({
 
   const totalSec = raw.reduce((a, s) => a + s.sec, 0) || 1
   const minOf = (s: WorkSeg | WaitSeg) => (s.kind === 'work' ? MIN_WORK_W : MIN_WAIT_W)
-  const contentW = Math.max(availW - PAD * 2 - 2, MIN_CONTENT_W)
+  const contentW = TRACK_W
 
   // Two-pass fill: any segment whose proportional share is below its readable minimum is
   // pinned to that minimum; the rest share the leftover width by their duration. The track
@@ -187,12 +163,12 @@ export default function VsmTimeline({
 
   return (
     <div className="vsm-timeline">
-      <div className="vsm-timeline__scroll" ref={scrollRef}>
+      <div className="vsm-timeline__scroll">
         <svg
           className="vsm-timeline__svg"
           viewBox={`0 0 ${svgW} ${svgH}`}
-          width={svgW}
-          height={svgH}
+          style={{ maxWidth: svgW }}
+          preserveAspectRatio="xMinYMid meet"
           role="img"
           aria-label="The critical path drawn to scale — value-add steps and the waits between them"
         >

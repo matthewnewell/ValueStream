@@ -88,6 +88,16 @@
   color: var(--color-text-faint);
 }
 
+.journal__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-critical);
+  background: var(--color-critical-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
 .journal__feed {
   list-style: none;
   margin: 0;

@@ -12,17 +12,16 @@
   border-radius: var(--radius-md);
 }
 
-/* A long value stream is genuinely wider than the column — scroll it rather than squish the
-   scale. */
 .vsm-timeline__scroll {
-  overflow-x: auto;
   padding: 4px 0;
 }
 
+/* The viewBox holds a fixed coordinate system; the SVG scales down to fit the container
+   (a drawer opening, a narrow window) and never grows past its natural width. */
 .vsm-timeline__svg {
   display: block;
-  /* width is set in px on the element (it fills the measured container); height too. */
-  max-width: none;
+  width: 100%;
+  height: auto;
   font-family: var(--font-sans);
 }
 
