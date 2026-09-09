@@ -4,7 +4,7 @@ import './MapToolbar.css'
 interface MapToolbarProps {
   mapId: string
   mapName: string
-  view: 'timeline' | 'node'
+  view: 'timeline' | 'node' | 'journal'
   /** Present only on the Node view, where the title doubles as a rename field. The Timeline
    * view's title is read-only — renaming happens where you edit everything else. */
   onRenameMap?: (name: string) => void
@@ -84,6 +84,14 @@ export default function MapToolbar({
               onClick={() => navigate(`/maps/${mapId}`)}
             >
               Node
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === 'journal'}
+              className={`map-toolbar__view-btn ${view === 'journal' ? 'map-toolbar__view-btn--active' : ''}`}
+              onClick={() => navigate(`/maps/${mapId}/journal`)}
+            >
+              Journal
             </button>
           </div>
         )}

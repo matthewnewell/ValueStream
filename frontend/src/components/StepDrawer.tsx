@@ -14,6 +14,8 @@ interface StepDrawerProps {
   onClose: () => void
   /** Open (or create-then-open) this step's sub-process map. */
   onExpand: () => void
+  /** The Node view opens straight into the edit form; the Timeline opens read-first. */
+  defaultMode?: 'read' | 'edit'
 }
 
 interface FormState {
@@ -36,7 +38,24 @@ function toForm(step: Step): FormState {
   }
 }
 
-export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: StepDrawerProps) {
+function critLine(m: StepMetric | undefined): string | null {
+  if (!m || typeof m.is_critical !== 'boolean') return null
+  if (m.is_critical) return 'On the critical path — time here moves the finish date.'
+  if (m.slack_sec && m.slack_sec > 0) {
+    return `Off the critical path — ${formatDuration(m.slack_sec)} of slack.`
+  }
+  return 'Off the critical path.'
+}
+
+export default function StepDrawer({
+  mapId,
+  step,
+  metric,
+  onClose,
+  onExpand,
+  defaultMode = 'read',
+}: StepDrawerProps) {
+  const [mode, setMode] = useState<'read' | 'edit'>(defaultMode)
   const [form, setForm] = useState<FormState>(() => toForm(step))
   const [why, setWhy] = useState('')
   const [name, setName] = useState(getAuthor())
@@ -47,12 +66,14 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
 
   const hasChildMap = !!step.child_map_id
 
-  // Explicit Save, not autosave-on-type. Reset the form whenever the operator switches to a
-  // different step (or the step is refetched after a save).
+  // Only on switching to a different step — not on every background refetch, so an in-progress
+  // edit is never silently reset. The post-save reset is handled explicitly in handleSave.
   useEffect(() => {
     setForm(toForm(step))
     setWhy('')
-  }, [step.id, step.human_time_sec, step.machine_time_sec, step.operators, step.machines, step.name, step.description])
+    setMode(defaultMode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.id])
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(step))
 
@@ -72,7 +93,13 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
           journal_note: why.trim() || undefined,
         },
       },
-      { onSuccess: () => setWhy('') },
+      {
+        onSuccess: (updated) => {
+          setForm(toForm(updated))
+          setWhy('')
+          setMode(defaultMode === 'edit' ? 'edit' : 'read')
+        },
+      },
     )
   }
 
@@ -91,8 +118,99 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
     collapseStep.mutate(step.id)
   }
 
-  const processingTime = form.human_time_sec + form.machine_time_sec
+  // ── Read mode ──────────────────────────────────────────────────────────────
+  if (mode === 'read') {
+    const proc = step.human_time_sec + step.machine_time_sec
+    const both = step.human_time_sec > 0 && step.machine_time_sec > 0
+    const crit = critLine(metric)
+    const resources = [
+      `${step.operators} operator${step.operators === 1 ? '' : 's'}`,
+      step.machines > 0 ? `${step.machines} machine${step.machines === 1 ? '' : 's'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ')
 
+    return (
+      <aside className="step-drawer">
+        <div className="step-drawer__header">
+          <h2 className="step-drawer__title">{step.name}</h2>
+          <button className="step-drawer__close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+
+        {step.description ? (
+          <p className="step-drawer__desc-text">{step.description}</p>
+        ) : (
+          <p className="step-drawer__desc-text step-drawer__desc-text--empty">No description</p>
+        )}
+
+        <dl className="step-drawer__facts">
+          {hasChildMap ? (
+            <>
+              <div className="step-drawer__fact">
+                <dt>Rolled-up total</dt>
+                <dd>{formatDuration(metric?.effective_processing_sec)}</dd>
+              </div>
+              <div className="step-drawer__fact">
+                <dt>From</dt>
+                <dd>
+                  a {metric?.child_step_count ?? '?'}-step sub-process ·{' '}
+                  <button className="step-drawer__linklike" onClick={onExpand}>
+                    open →
+                  </button>
+                </dd>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="step-drawer__fact">
+                <dt>Processing time</dt>
+                <dd>
+                  {formatDuration(proc)}
+                  {both && (
+                    <span className="step-drawer__fact-sub">
+                      {' '}
+                      · {formatDuration(step.human_time_sec)} human +{' '}
+                      {formatDuration(step.machine_time_sec)} machine
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div className="step-drawer__fact">
+                <dt>Resources</dt>
+                <dd>{resources}</dd>
+              </div>
+            </>
+          )}
+          {crit && (
+            <div
+              className={`step-drawer__fact step-drawer__fact--status${metric?.is_critical ? ' step-drawer__fact--critical' : ''}`}
+            >
+              <dd>{crit}</dd>
+            </div>
+          )}
+        </dl>
+
+        <div className="step-drawer__actions">
+          <button className="step-drawer__edit-btn" onClick={() => setMode('edit')}>
+            ✎ Edit
+          </button>
+        </div>
+
+        <div className="step-drawer__section step-drawer__journal">
+          <Journal
+            mapId={mapId}
+            target={{ type: 'step', id: step.id, name: step.name }}
+            editable
+            compact
+          />
+        </div>
+      </aside>
+    )
+  }
+
+  // ── Edit mode ──────────────────────────────────────────────────────────────
   return (
     <aside className="step-drawer">
       <div className="step-drawer__header">
@@ -132,8 +250,8 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
             <span>Processing time</span>
           </div>
           <div className="step-drawer__rollup-note">
-            This step is expanded into a {metric?.child_step_count ?? '?'}-step sub-process —
-            these numbers are rolled up from it, not editable here.
+            Expanded into a {metric?.child_step_count ?? '?'}-step sub-process — these numbers roll
+            up from it, not editable here.
           </div>
           <div className="step-drawer__rollup">
             <div className="step-drawer__rollup-row">
@@ -167,8 +285,7 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
           <div className="step-drawer__section-header">
             <span>Processing time</span>
           </div>
-
-          <div className="step-drawer__row">
+          <div className="step-drawer__stack">
             <DurationInput
               label="Human"
               seconds={form.human_time_sec}
@@ -181,9 +298,8 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
             />
           </div>
           <div className="step-drawer__total">
-            Total processing time: <strong>{formatTotal(processingTime)}</strong>
+            Total: <strong>{formatDuration(form.human_time_sec + form.machine_time_sec)}</strong>
           </div>
-
           <button className="step-drawer__expand-btn" onClick={onExpand}>
             ⤵ Expand into sub-process
           </button>
@@ -216,56 +332,52 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         </div>
       </div>
 
-      {dirty && (
-        <div className="step-drawer__why">
-          <label className="step-drawer__field-label">
-            Why this change? <span>optional — goes in the journal</span>
-          </label>
-          <textarea
-            rows={2}
-            value={why}
-            onChange={(e) => setWhy(e.target.value)}
-            placeholder="e.g. added a second shift to hit the ship date"
+      <div className="step-drawer__why">
+        <label className="step-drawer__field-label">
+          Why this change? <span>optional — goes in the journal</span>
+        </label>
+        <textarea
+          rows={2}
+          value={why}
+          onChange={(e) => setWhy(e.target.value)}
+          placeholder="e.g. added a second shift to hit the ship date"
+        />
+        {!getAuthor() && (
+          <input
+            className="step-drawer__why-name"
+            placeholder="your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
-          {!getAuthor() && (
-            <input
-              className="step-drawer__why-name"
-              placeholder="your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="step-drawer__footer">
         <button className="step-drawer__delete-btn" onClick={handleDelete}>
-          Delete step
+          Delete
         </button>
-        <button
-          className="step-drawer__save-btn"
-          onClick={handleSave}
-          disabled={!dirty || updateStep.isPending}
-        >
-          {updateStep.isPending ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
-        </button>
-      </div>
-
-      <div className="step-drawer__section step-drawer__journal">
-        <Journal
-          mapId={mapId}
-          target={{ type: 'step', id: step.id, name: step.name }}
-          editable
-          compact
-        />
+        <div className="step-drawer__footer-right">
+          {defaultMode !== 'edit' && (
+            <button
+              className="step-drawer__cancel-btn"
+              onClick={() => {
+                setForm(toForm(step))
+                setWhy('')
+                setMode('read')
+              }}
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            className="step-drawer__save-btn"
+            onClick={handleSave}
+            disabled={!dirty || updateStep.isPending}
+          >
+            {updateStep.isPending ? 'Saving…' : dirty ? 'Save' : 'Saved'}
+          </button>
+        </div>
       </div>
     </aside>
   )
-}
-
-function formatTotal(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`
-  if (seconds < 3600) return `${(seconds / 60).toFixed(1)}min`
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}hr`
-  return `${(seconds / 86400).toFixed(1)}days`
 }

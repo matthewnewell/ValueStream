@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAddMapEvent, useDeleteMapEvent, useMapEvents } from '../api/hooks'
 import type { MapEvent } from '../api/types'
 import { getAuthor, relativeTime, setAuthor } from '../lib/journal'
@@ -18,6 +19,7 @@ interface Group {
   ts: string
   author: string | null
   targetType: string | null
+  targetId: string | null
   targetName: string | null
   changes: MapEvent[]
   note: MapEvent | null
@@ -37,6 +39,7 @@ function groupEvents(events: MapEvent[]): Group[] {
         ts: e.created_at,
         author: e.author,
         targetType: e.target_type,
+        targetId: e.target_id,
         targetName: e.target_name,
         changes: [],
         note: null,
@@ -51,6 +54,7 @@ function groupEvents(events: MapEvent[]): Group[] {
 }
 
 export default function Journal({ mapId, target, editable, compact }: JournalProps) {
+  const navigate = useNavigate()
   const { data: events, isLoading } = useMapEvents(mapId, target?.id)
   const addEvent = useAddMapEvent(mapId)
   const deleteEvent = useDeleteMapEvent(mapId)
@@ -134,7 +138,16 @@ export default function Journal({ mapId, target, editable, compact }: JournalPro
                 {!scoped && g.targetName && (
                   <span className="journal__on">
                     · {g.targetType === 'edge' ? 'wait' : g.targetType === 'step' ? 'step' : ''}{' '}
-                    <strong>{g.targetName}</strong>
+                    {g.targetId && (g.targetType === 'step' || g.targetType === 'edge') ? (
+                      <button
+                        className="journal__target-link"
+                        onClick={() => navigate(`/maps/${mapId}/timeline?open=${g.targetId}`)}
+                      >
+                        {g.targetName}
+                      </button>
+                    ) : (
+                      <strong>{g.targetName}</strong>
+                    )}
                   </span>
                 )}
                 <span className="journal__time">{relativeTime(g.ts)}</span>

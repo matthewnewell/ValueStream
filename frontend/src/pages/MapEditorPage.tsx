@@ -114,6 +114,7 @@ export default function MapEditorPage() {
             mapId={mapId}
             step={selectedStep}
             metric={metrics?.step_metrics[selectedStep.id]}
+            defaultMode="edit"
             onClose={() => setSelectedStepId(null)}
             onExpand={() => handleExpandStep(selectedStep.id)}
           />
@@ -123,6 +124,8 @@ export default function MapEditorPage() {
           <EdgeDrawer
             mapId={mapId}
             edge={selectedEdge}
+            metrics={metrics}
+            defaultMode="edit"
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelectedEdgeId(null)}

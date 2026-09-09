@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   useExpandStep,
   useMap,
@@ -11,7 +11,6 @@ import {
 import type { MapMetrics, Step, WaitKind } from '../api/types'
 import EdgeDrawer from '../components/EdgeDrawer'
 import InfoPopover from '../components/InfoPopover'
-import Journal from '../components/Journal'
 import MapToolbar from '../components/MapToolbar'
 import StepDrawer from '../components/StepDrawer'
 import VsmTimeline from '../components/VsmTimeline'
@@ -152,6 +151,22 @@ export default function TimelinePage() {
     setSelStepId(null)
     setSelEdgeId(null)
   }, [mapId])
+
+  // The Journal view links back here as /maps/:id/timeline?open=<step or edge id> — resolve it,
+  // open that drawer, then drop the param so a refresh doesn't keep re-opening it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const open = searchParams.get('open')
+    if (!open || !map) return
+    if (map.steps.some((s) => s.id === open)) {
+      setSelEdgeId(null)
+      setSelStepId(open)
+    } else if (map.edges.some((e) => e.id === open)) {
+      setSelStepId(null)
+      setSelEdgeId(open)
+    }
+    setSearchParams({}, { replace: true })
+  }, [searchParams, map, setSearchParams])
 
   if (!mapId) return null
   if (mapLoading || metricsLoading || !map || !metrics) {
@@ -385,10 +400,6 @@ export default function TimelinePage() {
               </>
             )}
           </section>
-
-          <section className="tv-section">
-            <Journal mapId={mapId} editable={editable} />
-          </section>
         </div>
 
         {selectedStep && (
@@ -404,6 +415,7 @@ export default function TimelinePage() {
           <EdgeDrawer
             mapId={mapId}
             edge={selectedEdge}
+            metrics={metrics}
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelEdgeId(null)}

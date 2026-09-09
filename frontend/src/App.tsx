@@ -7,6 +7,7 @@ import AdminPage from './pages/AdminPage'
 import MapLayout from './pages/MapLayout'
 import MapEditorPage from './pages/MapEditorPage'
 import TimelinePage from './pages/TimelinePage'
+import JournalPage from './pages/JournalPage'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
       <Route path="/maps/:mapId" element={<MapLayout />}>
         <Route index element={<MapEditorPage />} />
         <Route path="timeline" element={<TimelinePage />} />
+        <Route path="journal" element={<JournalPage />} />
       </Route>
     </Routes>
   )

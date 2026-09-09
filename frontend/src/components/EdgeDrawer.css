@@ -29,6 +29,70 @@
   font-weight: 400;
 }
 
+/* ── read mode ── */
+.edge-drawer__facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edge-drawer__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edge-drawer__fact dt {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+}
+
+.edge-drawer__fact dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.edge-drawer__fact--status dd {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.edge-drawer__slip {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-critical);
+  background: var(--color-critical-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.edge-drawer__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edge-drawer__edit-btn {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edge-drawer__edit-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .edge-drawer__close {
   border: none;
   background: transparent;
@@ -119,7 +183,28 @@
   border-top: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
+}
+
+.edge-drawer__footer-right {
+  display: flex;
+  gap: 8px;
+}
+
+.edge-drawer__cancel-btn {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edge-drawer__cancel-btn:hover {
+  background: var(--color-surface-sunken);
 }
 
 .edge-drawer__delete-btn {

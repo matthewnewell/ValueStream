@@ -24,6 +24,107 @@
   gap: 8px;
 }
 
+/* ── read mode ── */
+.step-drawer__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.step-drawer__desc-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.step-drawer__desc-text--empty {
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+.step-drawer__facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step-drawer__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step-drawer__fact dt {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-faint);
+}
+
+.step-drawer__fact dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.step-drawer__fact-sub {
+  color: var(--color-text-faint);
+  font-size: 12px;
+}
+
+.step-drawer__fact--status dd {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.step-drawer__fact--critical dd {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.step-drawer__linklike {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.step-drawer__linklike:hover {
+  text-decoration: underline;
+}
+
+.step-drawer__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.step-drawer__edit-btn {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.step-drawer__edit-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .step-drawer__field-label {
   display: block;
   font-size: 11px;
@@ -120,6 +221,15 @@
 
 .step-drawer__row > * {
   flex: 1;
+  min-width: 0;
+}
+
+/* Human / Machine duration fields stacked — side by side, the unit dropdown clipped past
+   the 320px drawer edge. */
+.step-drawer__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .step-drawer__total {
@@ -227,7 +337,28 @@
   border-top: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
+}
+
+.step-drawer__footer-right {
+  display: flex;
+  gap: 8px;
+}
+
+.step-drawer__cancel-btn {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.step-drawer__cancel-btn:hover {
+  background: var(--color-surface-sunken);
 }
 
 .step-drawer__delete-btn {
