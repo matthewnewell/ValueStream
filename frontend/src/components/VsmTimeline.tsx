@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { MapDetail, MapMetrics } from '../api/types'
 import { formatDuration, formatDurationCompact } from '../lib/duration'
@@ -15,12 +16,13 @@ interface VsmTimelineProps {
   selectedId?: string | null
 }
 
-// SVG geometry, in a fixed coordinate system that CSS then scales to fit the container (so a
-// drawer opening or the window resizing never leaves it overflowing). Segment widths are
-// proportional to duration, but a tiny step is floored to a readable minimum; the one big
-// segment (usually the dominant wait) takes the slack.
+// SVG geometry. The coordinate system tracks the measured container width, so the viewBox
+// scales ~1:1 (text stays a constant size) while the whole figure widens and narrows with the
+// container — the chat panel opening/closing, the window resizing — like the cards below it.
+// Segment widths are proportional to duration; a tiny step is floored to a readable minimum
+// and the one big segment (usually the dominant wait) takes the slack.
 const PAD = 12
-const TRACK_W = 760 // nominal drawable width the proportional scale targets
+const MIN_TRACK_W = 420
 const MIN_WORK_W = 76
 const MIN_WAIT_W = 42
 const WORK_Y = 6
@@ -62,6 +64,28 @@ export default function VsmTimeline({
 }: VsmTimelineProps) {
   const navigate = useNavigate()
 
+  // Track the outer container's width so the coordinate system matches it (viewBox ~1:1, text
+  // a constant size) while the figure widens/narrows with the column — the chat panel toggling,
+  // the window resizing. The container is `width: 100%` and nothing inside can push it wider
+  // (the SVG is `width: 100%` too), so this is a clean one-way measurement.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [availW, setAvailW] = useState(760)
+  useLayoutEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+    const measure = () => setAvailW((prev) => (el.clientWidth ? el.clientWidth : prev))
+    measure()
+    // A CSS-driven resize (the chat panel opening) doesn't re-render this tree, so a
+    // ResizeObserver is what actually catches it; the window listener is a fallback.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(el)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+
   const stepsById = new Map(map.steps.map((s) => [s.id, s]))
   const edgesById = new Map(map.edges.map((e) => [e.id, e]))
   const pathSteps = metrics.critical_path_step_ids
@@ -95,7 +119,7 @@ export default function VsmTimeline({
 
   const totalSec = raw.reduce((a, s) => a + s.sec, 0) || 1
   const minOf = (s: WorkSeg | WaitSeg) => (s.kind === 'work' ? MIN_WORK_W : MIN_WAIT_W)
-  const contentW = TRACK_W
+  const contentW = Math.max(availW - PAD * 2, MIN_TRACK_W)
 
   // Two-pass fill: any segment whose proportional share is below its readable minimum is
   // pinned to that minimum; the rest share the leftover width by their duration. The track
@@ -162,12 +186,11 @@ export default function VsmTimeline({
   const hasDrill = segs.some((s) => s.kind === 'work' && s.childMapId)
 
   return (
-    <div className="vsm-timeline">
+    <div className="vsm-timeline" ref={rootRef}>
       <div className="vsm-timeline__scroll">
         <svg
           className="vsm-timeline__svg"
           viewBox={`0 0 ${svgW} ${svgH}`}
-          style={{ maxWidth: svgW }}
           preserveAspectRatio="xMinYMid meet"
           role="img"
           aria-label="The critical path drawn to scale — value-add steps and the waits between them"

@@ -15,7 +15,16 @@ import './MapLayout.css'
 export default function MapLayout() {
   const { mapId } = useParams<{ mapId: string }>()
   const { data: health } = useHealth()
-  const [chatOpen, setChatOpen] = useState(true)
+  // Collapsed by default — the map view is the point; open the chat when you want it.
+  const [chatOpen, setChatOpen] = useState(false)
+
+  // Toggling the panel resizes the main column via CSS alone (no re-render of the routed
+  // view), so nudge a resize event once the layout has settled — the timeline re-measures
+  // off it (its ResizeObserver handles the same in browsers that service one).
+  const toggleChat = (open: boolean) => {
+    setChatOpen(open)
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 80)
+  }
 
   if (!mapId) return null
 
@@ -32,12 +41,12 @@ export default function MapLayout() {
           <MapChatPanel
             mapId={mapId}
             aiConfigured={health?.ai_configured ?? false}
-            onCollapse={() => setChatOpen(false)}
+            onCollapse={() => toggleChat(false)}
           />
         ) : (
           <button
             className="map-layout__chat-tab"
-            onClick={() => setChatOpen(true)}
+            onClick={() => toggleChat(true)}
             title="Open chat"
           >
             ✨ Chat
