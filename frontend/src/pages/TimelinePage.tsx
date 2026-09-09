@@ -17,14 +17,17 @@ import VsmTimeline from '../components/VsmTimeline'
 import { formatDuration } from '../lib/duration'
 import './TimelinePage.css'
 
-type AttackType = 'slip' | 'delay' | 'bottleneck' | 'wait'
+type FocusType = 'slip' | 'delay' | 'bottleneck' | 'wait'
 
-interface AttackItem {
+interface FocusItem {
   key: string
-  type: AttackType
+  type: FocusType
   title: string
   detail: string
   hint: string
+  /** Seconds of impact on the outcome — drives the sort. A wait with slack contributes 0
+   * (shortening it doesn't move the date); a slip risk contributes the window it protects. */
+  impactSec: number
   waitKind?: WaitKind
   hasSlack?: boolean
   /** Where a click on the row goes: drill into a nested map, or open a drawer for this
@@ -34,59 +37,62 @@ interface AttackItem {
   stepId?: string
 }
 
-const TAG_LABEL: Record<AttackType, string> = {
+const TAG_LABEL: Record<FocusType, string> = {
   slip: 'Slip risk',
   delay: 'Dominant delay',
   bottleneck: 'Bottleneck',
   wait: 'Wait',
 }
 
-/** Ranked list of the things worth a PM's attention, most actionable first:
- *  1. slip risks  — a short window that gates a much longer one; miss it, lose the whole cycle
- *  2. dominant delay — the single biggest wait driving this delivery's date
- *  3. capacity bottleneck — the busiest step; caps throughput, not this date
- *  4. every other wait, largest first (off-critical-path ones flagged "has slack") */
-function buildAttackList(metrics: MapMetrics): AttackItem[] {
-  const items: AttackItem[] = []
-  const waits = metrics.wait_contributors
+// Tiebreak when two items have equal impact: protect a gated window before chasing the wait
+// it gates.
+const TYPE_ORDER: Record<FocusType, number> = { slip: 0, delay: 1, wait: 2, bottleneck: 3 }
+
+/** Where to focus — impact-first, not "easiest first". Every item carries an `impactSec`
+ * (how much it drives the delivery date); the list sorts by that. Anything with slack —
+ * shortening it moves nothing — is split off into a collapsed group rather than mixed in. */
+function buildFocusList(metrics: MapMetrics): { primary: FocusItem[]; minor: FocusItem[] } {
+  const items: FocusItem[] = []
+  const waits = metrics.wait_contributors // engine sorts these worst-first
   const critEdges = new Set(metrics.critical_edge_ids)
-  const shown = new Set<string>()
+  const domId = waits.find((w) => critEdges.has(w.edge_id) && !w.slip_amplification)?.edge_id
 
   for (const w of waits) {
-    if (!w.slip_amplification) continue
-    shown.add(w.edge_id)
-    const gated =
-      w.slip_amplification.protects_label || w.slip_amplification.protects_target_step_name
-    items.push({
-      key: `slip-${w.edge_id}`,
-      type: 'slip',
-      edgeId: w.edge_id,
-      title: `${w.source_step_name} → ${w.target_step_name}`,
-      detail: `${formatDuration(w.wait_time_sec)}${w.label ? ` · ${w.label}` : ''}`,
-      waitKind: w.wait_kind,
-      hint: `Protect this date. A slip here can miss the ${formatDuration(
-        w.slip_amplification.protects_wait_sec,
-      )}${gated ? ` "${gated}"` : ''} window it gates — and cost the whole downstream cycle, not just the days lost here.`,
-    })
-  }
+    const onCrit = critEdges.has(w.edge_id)
+    const slip = w.slip_amplification
+    const label = w.label ? ` · ${w.label}` : ''
 
-  const dom = waits[0]
-  if (dom && !shown.has(dom.edge_id)) {
-    shown.add(dom.edge_id)
+    if (slip) {
+      const gated = slip.protects_label || slip.protects_target_step_name
+      items.push({
+        key: `slip-${w.edge_id}`,
+        type: 'slip',
+        edgeId: w.edge_id,
+        impactSec: slip.protects_wait_sec,
+        waitKind: w.wait_kind,
+        title: `${w.source_step_name} → ${w.target_step_name}`,
+        detail: `${formatDuration(w.wait_time_sec)}${label} · gates a ${formatDuration(slip.protects_wait_sec)} window`,
+        hint: `Protect this date — a slip here can miss the ${formatDuration(slip.protects_wait_sec)}${gated ? ` "${gated}"` : ''} window it gates, costing the whole downstream cycle, not just the days lost here.`,
+      })
+      continue
+    }
+
     items.push({
-      key: `delay-${dom.edge_id}`,
-      type: 'delay',
-      edgeId: dom.edge_id,
-      title: `${dom.source_step_name} → ${dom.target_step_name}`,
-      detail: `${formatDuration(dom.wait_time_sec)}${dom.label ? ` · ${dom.label}` : ''}`,
-      waitKind: dom.wait_kind,
-      hasSlack: !critEdges.has(dom.edge_id),
-      hint:
-        dom.wait_kind === 'external'
+      key: `wait-${w.edge_id}`,
+      type: w.edge_id === domId ? 'delay' : 'wait',
+      edgeId: w.edge_id,
+      impactSec: onCrit ? w.wait_time_sec : 0,
+      hasSlack: !onCrit,
+      waitKind: w.wait_kind,
+      title: `${w.source_step_name} → ${w.target_step_name}`,
+      detail: `${formatDuration(w.wait_time_sec)}${label}`,
+      hint: !onCrit
+        ? 'Off the critical path — it has slack, so shortening it will not move the delivery date. Worth watching, not spending on.'
+        : w.wait_kind === 'external'
           ? 'Outside your control — buffer around it, or qualify a second/faster source before the next program needs it.'
-          : dom.wait_kind === 'internal'
+          : w.wait_kind === 'internal'
             ? 'You control this. Before making it faster, ask whether the step or sign-off is load-bearing at all — deleting beats optimizing.'
-            : 'Categorize this wait as internal or external so you know whether you can act on it directly.',
+            : 'Categorize this wait as internal or external so you know whether you can act on it.',
     })
   }
 
@@ -101,38 +107,23 @@ function buildAttackList(metrics: MapMetrics): AttackItem[] {
       type: 'bottleneck',
       drillMapId: nested ? db.breadcrumb[db.breadcrumb.length - 1].map_id : null,
       stepId: nested ? undefined : db.step_id,
+      impactSec: db.on_critical_path ? db.processing_time_sec : 0,
+      hasSlack: !db.on_critical_path,
       title: db.name + (inside ? `  (inside ${inside})` : ''),
-      detail: `${formatDuration(db.processing_time_sec)} of work${
-        db.on_critical_path ? '' : ' · not on the critical path'
-      }`,
+      detail: `${formatDuration(db.processing_time_sec)} of work${db.on_critical_path ? '' : ' · off the critical path'}`,
       hint:
-        'The busiest single step — it caps throughput (how many you can run per month), not this delivery date. Add capacity here only if you run this process repeatedly.' +
-        (db.on_critical_path
-          ? ''
-          : ' It is not even on the path setting your date, so it is not the reason this one is late.'),
+        'The busiest single step — it caps throughput (units per period), not this one delivery. Add capacity here only if you run this process repeatedly.' +
+        (db.on_critical_path ? '' : ' It is not on the path setting the date either.'),
     })
   }
 
-  for (const w of waits) {
-    if (shown.has(w.edge_id)) continue
-    items.push({
-      key: `wait-${w.edge_id}`,
-      type: 'wait',
-      edgeId: w.edge_id,
-      title: `${w.source_step_name} → ${w.target_step_name}`,
-      detail: `${formatDuration(w.wait_time_sec)}${w.label ? ` · ${w.label}` : ''}`,
-      waitKind: w.wait_kind,
-      hasSlack: !critEdges.has(w.edge_id),
-      hint:
-        w.wait_kind === 'internal'
-          ? 'Internal — a candidate to shorten or remove.'
-          : w.wait_kind === 'external'
-            ? 'External — track it; add buffer if it sits on the critical path.'
-            : 'Not yet categorized as internal or external.',
-    })
-  }
+  const byImpact = (a: FocusItem, b: FocusItem) =>
+    b.impactSec - a.impactSec || TYPE_ORDER[a.type] - TYPE_ORDER[b.type]
 
-  return items
+  return {
+    primary: items.filter((i) => !i.hasSlack).sort(byImpact),
+    minor: items.filter((i) => i.hasSlack).sort(byImpact),
+  }
 }
 
 export default function TimelinePage() {
@@ -147,9 +138,11 @@ export default function TimelinePage() {
   // Which timeline element is open in the drawer. Only one of the two is ever set.
   const [selStepId, setSelStepId] = useState<string | null>(null)
   const [selEdgeId, setSelEdgeId] = useState<string | null>(null)
+  const [showMinor, setShowMinor] = useState(false)
   useEffect(() => {
     setSelStepId(null)
     setSelEdgeId(null)
+    setShowMinor(false)
   }, [mapId])
 
   // The Journal view links back here as /maps/:id/timeline?open=<step or edge id> — resolve it,
@@ -237,9 +230,55 @@ export default function TimelinePage() {
     })
   }
 
-  const attack = buildAttackList(metrics)
+  const focus = buildFocusList(metrics)
   const wbk = metrics.wait_by_kind_sec
   const pce = metrics.process_cycle_efficiency_pct
+
+  function renderFocusRow(it: FocusItem) {
+    const act = it.drillMapId
+      ? () => navigate(`/maps/${it.drillMapId}/timeline`)
+      : editable && it.edgeId
+        ? () => openEdge(it.edgeId!)
+        : editable && it.stepId
+          ? () => openStep(it.stepId!)
+          : undefined
+    const isSel =
+      (it.edgeId && it.edgeId === selEdgeId) || (it.stepId && it.stepId === selStepId)
+    return (
+      <li
+        key={it.key}
+        className={
+          'tv-focus__row' +
+          (act ? ' tv-focus__row--click' : '') +
+          (isSel ? ' tv-focus__row--selected' : '')
+        }
+        {...(act
+          ? {
+              role: 'button',
+              tabIndex: 0,
+              onClick: act,
+              onKeyDown: (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  act()
+                }
+              },
+            }
+          : {})}
+      >
+        <span className={`tv-tag tv-tag--${it.type}`}>{TAG_LABEL[it.type]}</span>
+        <div className="tv-focus__body">
+          <div className="tv-focus__title">
+            {it.title}
+            {it.waitKind && <span className={`tv-kind tv-kind--${it.waitKind}`}>{it.waitKind}</span>}
+          </div>
+          <div className="tv-focus__detail">{it.detail}</div>
+          <div className="tv-focus__hint">{it.hint}</div>
+        </div>
+        {it.drillMapId && <span className="tv-focus__chev">⤵</span>}
+      </li>
+    )
+  }
 
   return (
     <div className="tv-page">
@@ -305,37 +344,37 @@ export default function TimelinePage() {
 
           <section className="tv-section">
             <div className="tv-section__head">
-              <h2 className="tv-section__title">What to attack</h2>
-              <InfoPopover label="the attack list">
-                Ranked most-actionable first.
+              <h2 className="tv-section__title">Where to focus</h2>
+              <InfoPopover label="the focus list">
+                Ranked by impact on the delivery date — the biggest lever first, not the easiest
+                fix. Anything with slack (shortening it moves nothing) is set aside below.
                 <br />
                 <br />
-                <strong>Slip risk</strong> — a short wait right before a much longer one on the
-                critical path. Missing the short window can forfeit the whole long cycle, so it is
-                worth more attention than its own length.
+                <strong>Slip risk</strong> — a short window that gates a much longer one. Missing
+                it forfeits the whole downstream cycle, so it ranks by what it protects, not its
+                own length.
                 <br />
                 <br />
-                <strong>Dominant delay</strong> — the single biggest wait. The largest lever on
-                this delivery's date.
+                <strong>Dominant delay</strong> — the single biggest wait on the critical path.
+                The largest lever on this delivery's date.
                 <br />
                 <br />
                 <strong>Bottleneck</strong> — the busiest single step. Caps throughput (units per
-                month), not this one date.
+                period), not this one date — usually a lower priority for one-off project work.
                 <br />
                 <br />
-                <strong>Wait</strong> — every other gap, largest first. "Has slack" means it is off
-                the critical path, so shortening it will not move the date.
+                <strong>Wait</strong> — the remaining critical-path gaps, biggest first.
               </InfoPopover>
             </div>
 
-            {attack.length === 0 ? (
+            {focus.primary.length === 0 && focus.minor.length === 0 ? (
               <p className="tv-section__body">
                 No waits or bottleneck recorded yet — this map is all work, no gaps.
               </p>
             ) : (
               <>
                 {(wbk.internal > 0 || wbk.external > 0 || wbk.unspecified > 0) && (
-                  <p className="tv-attack__split">
+                  <p className="tv-focus__split">
                     <strong>{formatDuration(wbk.internal)}</strong> of the total wait is inside your
                     control · <strong>{formatDuration(wbk.external)}</strong> is outside it
                     {wbk.unspecified > 0 && (
@@ -344,59 +383,29 @@ export default function TimelinePage() {
                   </p>
                 )}
 
-                <ol className="tv-attack">
-                  {attack.map((it) => {
-                    const act = it.drillMapId
-                      ? () => navigate(`/maps/${it.drillMapId}/timeline`)
-                      : editable && it.edgeId
-                        ? () => openEdge(it.edgeId!)
-                        : editable && it.stepId
-                          ? () => openStep(it.stepId!)
-                          : undefined
-                    const isSel =
-                      (it.edgeId && it.edgeId === selEdgeId) ||
-                      (it.stepId && it.stepId === selStepId)
-                    return (
-                      <li
-                        key={it.key}
-                        className={
-                          'tv-attack__row' +
-                          (act ? ' tv-attack__row--click' : '') +
-                          (isSel ? ' tv-attack__row--selected' : '')
-                        }
-                        {...(act
-                          ? {
-                              role: 'button',
-                              tabIndex: 0,
-                              onClick: act,
-                              onKeyDown: (e: KeyboardEvent) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  act()
-                                }
-                              },
-                            }
-                          : {})}
-                      >
-                        <span className={`tv-tag tv-tag--${it.type}`}>{TAG_LABEL[it.type]}</span>
-                        <div className="tv-attack__body">
-                          <div className="tv-attack__title">
-                            {it.title}
-                            {it.waitKind && (
-                              <span className={`tv-kind tv-kind--${it.waitKind}`}>
-                                {it.waitKind}
-                              </span>
-                            )}
-                            {it.hasSlack && <span className="tv-kind tv-kind--slack">has slack</span>}
-                          </div>
-                          <div className="tv-attack__detail">{it.detail}</div>
-                          <div className="tv-attack__hint">{it.hint}</div>
-                        </div>
-                        {it.drillMapId && <span className="tv-attack__chev">⤵</span>}
-                      </li>
-                    )
-                  })}
-                </ol>
+                {focus.primary.length > 0 ? (
+                  <ol className="tv-focus">{focus.primary.map(renderFocusRow)}</ol>
+                ) : (
+                  <p className="tv-section__body">
+                    Nothing on the critical path to attack — every wait here has slack.
+                  </p>
+                )}
+
+                {focus.minor.length > 0 && (
+                  <>
+                    <button
+                      className="tv-focus__more"
+                      onClick={() => setShowMinor((v) => !v)}
+                      aria-expanded={showMinor}
+                    >
+                      {showMinor ? '▾' : '▸'} {focus.minor.length} more with slack —{' '}
+                      {showMinor ? 'hide' : 'show'}
+                    </button>
+                    {showMinor && (
+                      <ol className="tv-focus tv-focus--minor">{focus.minor.map(renderFocusRow)}</ol>
+                    )}
+                  </>
+                )}
               </>
             )}
           </section>

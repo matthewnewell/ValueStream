@@ -97,8 +97,8 @@
   line-height: 1.4;
 }
 
-/* ── "what to attack" list ── */
-.tv-attack__split {
+/* ── "where to focus" list ── */
+.tv-focus__split {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.5;
@@ -108,7 +108,7 @@
   padding: 10px 12px;
 }
 
-.tv-attack {
+.tv-focus {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -117,7 +117,7 @@
   gap: 8px;
 }
 
-.tv-attack__row {
+.tv-focus__row {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -127,27 +127,27 @@
   padding: 12px 14px;
 }
 
-.tv-attack__row--click {
+.tv-focus__row--click {
   cursor: pointer;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 
-.tv-attack__row--click:hover {
+.tv-focus__row--click:hover {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
 }
 
-.tv-attack__row--click:focus-visible {
+.tv-focus__row--click:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
-.tv-attack__row--selected {
+.tv-focus__row--selected {
   border-color: var(--color-accent);
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
-.tv-attack__body {
+.tv-focus__body {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -155,29 +155,55 @@
   gap: 3px;
 }
 
-.tv-attack__title {
+.tv-focus__title {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--color-text);
 }
 
-.tv-attack__detail {
+.tv-focus__detail {
   font-size: 12px;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
-.tv-attack__hint {
+.tv-focus__hint {
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-secondary);
   margin-top: 2px;
 }
 
-.tv-attack__chev {
+.tv-focus__chev {
   color: var(--color-accent);
   font-weight: 700;
   flex-shrink: 0;
+}
+
+/* ── the collapsed "has slack" group ── */
+.tv-focus__more {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.tv-focus__more:hover {
+  color: var(--color-text);
+}
+
+.tv-focus--minor .tv-focus__row {
+  background: var(--color-surface-sunken);
+  border-color: transparent;
+}
+
+.tv-focus--minor .tv-focus__title,
+.tv-focus--minor .tv-focus__detail {
+  color: var(--color-text-secondary);
 }
 
 /* ── type tag ── */
