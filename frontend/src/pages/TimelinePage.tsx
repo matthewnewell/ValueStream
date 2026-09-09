@@ -89,7 +89,7 @@ function buildFocusList(metrics: MapMetrics): { primary: FocusItem[]; minor: Foc
       hint: !onCrit
         ? 'Off the critical path — it has slack, so shortening it will not move the delivery date. Worth watching, not spending on.'
         : w.wait_kind === 'external'
-          ? 'Outside your control — buffer around it, or qualify a second/faster source before the next program needs it.'
+          ? 'Outside your day-to-day control, but not fixed — pay to expedite, dual-source it, or order earlier and hold a buffer. It is on the critical path, so money spent shrinking it buys lead time directly.'
           : w.wait_kind === 'internal'
             ? 'You control this. Before making it faster, ask whether the step or sign-off is load-bearing at all — deleting beats optimizing.'
             : 'Categorize this wait as internal or external so you know whether you can act on it.',
