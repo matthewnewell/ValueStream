@@ -33,8 +33,8 @@ def _now():
 #                working map, carrying its real recorded numbers), cloned to seed a new project
 #   featured   — an org-issued generic scaffold (the ISO/IEC/IEEE 15288 starter maps); never
 #                belonged to a real project
-#   sample     — the single canned demo map the nav's "Sample Map" opens, so someone evaluating
-#                the tool has one representative map to look at without opening the catalog
+#   sample     — the single demo map the nav's "Sample Map" opens: an editable sandbox for
+#                evaluating the tool, restored to its seeded state by "↺ Reset"
 MAP_LIFECYCLES = ("working", "published", "featured", "sample")
 
 
@@ -100,9 +100,10 @@ class Map(db.Model):
 
     @property
     def read_only(self) -> bool:
-        """Only a working map can be edited. Published snapshots, featured scaffolds, and the
-        sample map are frozen — clone one into a project to make changes."""
-        return self.lifecycle != "working"
+        """Published snapshots and featured scaffolds are frozen library artifacts — clone one
+        into a project to make changes. Working maps and the sample (an editable sandbox that
+        "↺ Reset" restores) are writable."""
+        return self.lifecycle in ("published", "featured")
 
     def to_dict(self, include_graph: bool = True) -> dict:
         d = {

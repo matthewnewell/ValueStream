@@ -1,8 +1,9 @@
 /** Where a map sits in the lifecycle (see backend models.MAP_LIFECYCLES):
- *  - working   — a live project's map; the only editable kind, the only kind in the main list
+ *  - working   — a live project's map; managed from Admin, the only kind in the main list
  *  - published — a frozen snapshot contributed to the library at closeout, with real numbers
- *  - featured  — an org-issued generic 15288 scaffold
- *  - sample    — the single read-only demo map the nav's "Sample Map" opens */
+ *  - featured  — an org-issued generic 15288 scaffold (frozen)
+ *  - sample    — the demo map the nav's "Sample Map" opens: an editable sandbox, restored
+ *                by "↺ Reset". Editable like a working map; `read_only` is false. */
 export type MapLifecycle = 'working' | 'published' | 'featured' | 'sample'
 
 export interface MapSummary {
@@ -13,8 +14,9 @@ export interface MapSummary {
   updated_at: string
   step_count: number
   lifecycle: MapLifecycle
-  /** True for anything but a working map — the editor and the mutating routes are closed off.
-   * Clone a library map into a project to get an editable copy. */
+  /** True only for a frozen library map (published / featured) — the editor and mutating
+   * routes are closed off. Clone it into a project for an editable copy. Working maps and the
+   * sample are editable (read_only false). */
   read_only: boolean
   /** Legacy flag, kept in sync with `lifecycle === 'featured'`. New code branches on
    * `lifecycle`; this is only still here for older callers. */

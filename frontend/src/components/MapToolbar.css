@@ -7,21 +7,6 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.map-toolbar__back {
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-
-.map-toolbar__back:hover {
-  background: var(--color-surface-sunken);
-}
-
 .map-toolbar__title {
   flex: 1;
   min-width: 0;
@@ -109,6 +94,22 @@
 .map-toolbar__view-btn--active {
   background: var(--color-accent);
   color: white;
+}
+
+.map-toolbar__reset {
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.map-toolbar__reset:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
 }
 
 .map-toolbar__readonly-pill {

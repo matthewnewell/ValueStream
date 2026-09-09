@@ -3,8 +3,8 @@ import { useSampleMap } from '../api/hooks'
 import './vsm-shared.css'
 
 /** The nav's "Sample Map" — there's no page of its own, it just resolves the one map tagged
- * lifecycle='sample' on the backend and forwards to its (read-only) BLUF. A representative map
- * to look at without opening the library. */
+ * lifecycle='sample' on the backend and forwards to its Timeline view. An editable sandbox for trying
+ * the tool; "↺ Reset" in the toolbar restores it. */
 export default function SamplePage() {
   const { data, isLoading, isError } = useSampleMap()
 
@@ -24,5 +24,5 @@ export default function SamplePage() {
     )
   }
 
-  return <Navigate to={`/maps/${data.id}/bluf`} replace />
+  return <Navigate to={`/maps/${data.id}/timeline`} replace />
 }

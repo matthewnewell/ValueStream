@@ -6,7 +6,7 @@ import './LibraryPage.css'
 
 /** The Map Library: featured 15288 scaffolds up top, then the growing list of maps published
  * from real projects at closeout — each cloned (never edited in place) to start a new project.
- * "Used by N projects" is the reuse signal. Own route, same "full page" pattern as BLUF. */
+ * "Used by N projects" is the reuse signal. Own route, same "full page" pattern as the Timeline view. */
 export default function LibraryPage() {
   const navigate = useNavigate()
   const { data: entries, isLoading } = useMapLibrary()
@@ -81,7 +81,7 @@ export default function LibraryPage() {
           <h2 className="library-section__title">From projects — published at closeout</h2>
           {published.length === 0 ? (
             <p className="library-section__empty">
-              No project maps published yet. When a project wraps, open its map's BLUF and choose
+              No project maps published yet. When a project wraps, open its map's Timeline view and choose
               <strong> Publish to Library</strong> — it lands here with its real recorded numbers.
             </p>
           ) : (

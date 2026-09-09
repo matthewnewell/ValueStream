@@ -31,12 +31,23 @@ export function useMapLibrary() {
   })
 }
 
-/** The one read-only demo map the nav's "Sample Map" opens. */
+/** The one demo map the nav's "Sample Map" opens — an editable sandbox. */
 export function useSampleMap() {
   return useQuery({
     queryKey: ['maps', 'sample'],
     queryFn: () => api.get<MapSummary>('/maps/sample'),
     staleTime: 5 * 60_000,
+  })
+}
+
+/** Restore the Sample Map to its seeded state — discards edits and any expanded sub-processes.
+ * Broad invalidation: the map, its graph/metrics, the sample id (which changes on rebuild),
+ * and the main list (sub-process maps may have been deleted). */
+export function useResetSample() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<MapDetail>('/maps/sample/reset'),
+    onSuccess: () => qc.invalidateQueries(),
   })
 }
 

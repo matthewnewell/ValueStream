@@ -1,9 +1,10 @@
 """Shared route guards.
 
-Value Stream has no auth, but it does have read-only maps: a published snapshot, a featured
-15288 scaffold, and the sample map are all frozen. The graph-editing routes call
-`writable_or_403` so a stray PUT (or a curious poke at the API) can't corrupt one — you clone a
-library map into a project to change it, you don't edit it in place.
+Value Stream has no auth, but it does have read-only maps: a published snapshot and a featured
+15288 scaffold are frozen library artifacts. The graph-editing routes call `writable_or_403`
+so a stray PUT (or a curious poke at the API) can't corrupt one — you clone a library map into
+a project to change it, you don't edit it in place. Working maps and the sample map (an
+editable sandbox, restored by "↺ Reset") are writable.
 """
 
 from flask import jsonify
@@ -19,7 +20,7 @@ def writable_or_403(map_id: str):
         return (
             jsonify({
                 "error": (
-                    f"This map is {m.lifecycle} and read-only. "
+                    f"This map is a {m.lifecycle} library entry and read-only. "
                     "Clone it into a project from the Map Library to make changes."
                 )
             }),

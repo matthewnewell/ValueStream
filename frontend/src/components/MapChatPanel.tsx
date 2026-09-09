@@ -66,7 +66,7 @@ export default function MapChatPanel({ mapId, aiConfigured, onCollapse }: MapCha
         <div className="chat-panel__not-configured">
           AI is not configured for this instance. Set <code>AI_PROVIDER</code> to{' '}
           <code>claude</code> or <code>ollama</code> to talk through this value stream's
-          bottlenecks, constraints, and recommendations — while reviewing it on BLUF or
+          bottlenecks, constraints, and recommendations — while reviewing it on the Timeline view or
           editing it on the canvas. Everything else works fully without it.
         </div>
       </aside>

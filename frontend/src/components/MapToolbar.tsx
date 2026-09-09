@@ -4,31 +4,39 @@ import './MapToolbar.css'
 interface MapToolbarProps {
   mapId: string
   mapName: string
-  view: 'bluf' | 'editor'
-  /** Present only on the editor, where the title doubles as a rename field. BLUF's title is
-   * read-only — renaming happens where you edit everything else. */
+  view: 'timeline' | 'node'
+  /** Present only on the Node view, where the title doubles as a rename field. The Timeline
+   * view's title is read-only — renaming happens where you edit everything else. */
   onRenameMap?: (name: string) => void
-  /** Editor-only page actions (Add step, Wait contributors, Analyze bottlenecks), rendered
-   * just left of the BLUF/Edit Map toggle. */
+  /** View-specific page actions (Add step on Node, Publish on Timeline), rendered just left of
+   * the Timeline/Node toggle. */
   actions?: React.ReactNode
-  /** A published snapshot, a featured scaffold, or the sample map: no editor, a "Read-only"
-   * pill instead of the BLUF/Edit toggle. */
+  /** A published snapshot or a featured scaffold: frozen, a "Read-only" pill instead of the
+   * Timeline/Node toggle. */
   readOnly?: boolean
+  /** The sample map: editable like any working map, plus a "↺ Reset" button that restores it
+   * to the seeded state. */
+  onReset?: () => void
 }
 
-/** Shared top bar for both map views. Far-left "← Library" is a fixed convention — it always
- * returns to the Map Library, regardless of which view you're on or how deep you navigated in.
- * The right-hand toggle is how you move between BLUF and the editor; on a read-only map there's
- * no editor, so it's replaced by a plain "Read-only" pill. */
-export default function MapToolbar({ mapId, mapName, view, onRenameMap, actions, readOnly }: MapToolbarProps) {
+/** Map-scoped bar under the persistent VsmNav: the map's name (an editable field on the Node
+ * view) on the left, and on the right the toggle between the Timeline view (analysis + journal)
+ * and the Node view (the graph) — replaced by a plain "Read-only" pill on a frozen library
+ * map. App-level navigation (home, Sample Map, Map Library, Admin) lives in VsmNav above;
+ * nested sub-process maps get a Breadcrumb between the two. */
+export default function MapToolbar({
+  mapId,
+  mapName,
+  view,
+  onRenameMap,
+  actions,
+  readOnly,
+  onReset,
+}: MapToolbarProps) {
   const navigate = useNavigate()
 
   return (
     <div className="map-toolbar">
-      <button className="map-toolbar__back" onClick={() => navigate('/library')}>
-        ← Library
-      </button>
-
       {onRenameMap && !readOnly ? (
         <input
           className="map-toolbar__title-input"
@@ -40,29 +48,42 @@ export default function MapToolbar({ mapId, mapName, view, onRenameMap, actions,
       )}
 
       <div className="map-toolbar__right">
+        {onReset && (
+          <button
+            className="map-toolbar__reset"
+            onClick={onReset}
+            title="Discard changes and restore the sample map to its original state"
+          >
+            ↺ Reset
+          </button>
+        )}
+
         {actions && <div className="map-toolbar__actions">{actions}</div>}
 
         {readOnly ? (
-          <span className="map-toolbar__readonly-pill" title="Clone this into a project from the Map Library to make changes.">
+          <span
+            className="map-toolbar__readonly-pill"
+            title="Clone this into a project from the Map Library to make changes."
+          >
             Read-only
           </span>
         ) : (
           <div className="map-toolbar__view-toggle" role="tablist">
             <button
               role="tab"
-              aria-selected={view === 'bluf'}
-              className={`map-toolbar__view-btn ${view === 'bluf' ? 'map-toolbar__view-btn--active' : ''}`}
-              onClick={() => navigate(`/maps/${mapId}/bluf`)}
+              aria-selected={view === 'timeline'}
+              className={`map-toolbar__view-btn ${view === 'timeline' ? 'map-toolbar__view-btn--active' : ''}`}
+              onClick={() => navigate(`/maps/${mapId}/timeline`)}
             >
-              BLUF
+              Timeline
             </button>
             <button
               role="tab"
-              aria-selected={view === 'editor'}
-              className={`map-toolbar__view-btn ${view === 'editor' ? 'map-toolbar__view-btn--active' : ''}`}
+              aria-selected={view === 'node'}
+              className={`map-toolbar__view-btn ${view === 'node' ? 'map-toolbar__view-btn--active' : ''}`}
               onClick={() => navigate(`/maps/${mapId}`)}
             >
-              ✏️ Edit Map
+              Node
             </button>
           </div>
         )}

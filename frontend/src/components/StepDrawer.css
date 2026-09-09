@@ -8,6 +8,14 @@
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  animation: drawer-slide-in 0.16s ease;
+}
+
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
 }
 
 .step-drawer__header {

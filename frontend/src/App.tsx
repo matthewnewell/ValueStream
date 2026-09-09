@@ -6,7 +6,7 @@ import LibraryPage from './pages/LibraryPage'
 import AdminPage from './pages/AdminPage'
 import MapLayout from './pages/MapLayout'
 import MapEditorPage from './pages/MapEditorPage'
-import BlufPage from './pages/BlufPage'
+import TimelinePage from './pages/TimelinePage'
 
 export default function App() {
   return (
@@ -23,11 +23,11 @@ export default function App() {
       </Route>
 
       {/* MapLayout owns the chat panel + breadcrumb and stays mounted across this swap, so the
-          chat pane (and its conversation) survives toggling between edit and BLUF. Its own
+          chat pane (and its conversation) survives toggling between the Node and Timeline views. Its own
           toolbar replaces the top nav here to keep the canvas uncluttered. */}
       <Route path="/maps/:mapId" element={<MapLayout />}>
         <Route index element={<MapEditorPage />} />
-        <Route path="bluf" element={<BlufPage />} />
+        <Route path="timeline" element={<TimelinePage />} />
       </Route>
     </Routes>
   )

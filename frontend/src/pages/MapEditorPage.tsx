@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { useCreateStep, useExpandStep, useMap, useMapMetrics, useUpdateMap } from '../api/hooks'
+import {
+  useCreateStep,
+  useExpandStep,
+  useMap,
+  useMapMetrics,
+  useResetSample,
+  useUpdateMap,
+} from '../api/hooks'
 import MapCanvas from '../components/MapCanvas'
 import MapToolbar from '../components/MapToolbar'
 import MetricsBar from '../components/MetricsBar'
@@ -16,15 +23,17 @@ export default function MapEditorPage() {
   const updateMap = useUpdateMap(mapId ?? '')
   const createStep = useCreateStep(mapId ?? '')
   const expandStep = useExpandStep(mapId ?? '')
+  const resetSample = useResetSample()
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
 
   if (!mapId) return null
   if (isLoading || !map) return <div className="map-editor-page__loading">Loading map…</div>
-  // A published snapshot, a featured scaffold, or the sample map has no editor — send it to
-  // BLUF. (The nav and library never link here for one; this covers a hand-typed URL.)
-  if (map.read_only) return <Navigate to={`/maps/${mapId}/bluf`} replace />
+  // A published snapshot or a featured scaffold is frozen — no editor, send it to the Timeline view. (The
+  // library never links here for one; this covers a hand-typed URL.) The sample map IS
+  // editable, so it falls through to the editor like any working map.
+  if (map.read_only) return <Navigate to={`/maps/${mapId}/timeline`} replace />
 
   const selectedStep = map.steps.find((s) => s.id === selectedStepId) ?? null
   const selectedEdge = map.edges.find((e) => e.id === selectedEdgeId) ?? null
@@ -51,17 +60,26 @@ export default function MapEditorPage() {
 
   // Double-click (or the node's ⤵ badge) drills into a step's sub-process — creating one on
   // the fly if it doesn't have one yet, so "explode this step" is a single action either way.
-  // Lands on the child map's BLUF, same "arriving at a map lands on its summary" rule as
+  // Lands on the child map's Timeline view, same "arriving at a map lands on its summary" rule as
   // everywhere else — not straight into its editor.
   function handleExpandStep(stepId: string) {
     const step = map!.steps.find((s) => s.id === stepId)
     if (step?.child_map_id) {
-      navigate(`/maps/${step.child_map_id}/bluf`)
+      navigate(`/maps/${step.child_map_id}/timeline`)
       return
     }
     expandStep.mutate(stepId, {
-      onSuccess: (childMap) => navigate(`/maps/${childMap.id}/bluf`),
+      onSuccess: (childMap) => navigate(`/maps/${childMap.id}/timeline`),
     })
+  }
+
+  // The sample map is an editable sandbox — Reset wipes it back to the seeded state. Rebuilt
+  // with a new id, so land on /sample to re-resolve it.
+  function handleReset() {
+    if (!window.confirm('Reset the sample map? This discards every change and restores the original.')) {
+      return
+    }
+    resetSample.mutate(undefined, { onSuccess: () => navigate('/sample') })
   }
 
   return (
@@ -69,8 +87,9 @@ export default function MapEditorPage() {
       <MapToolbar
         mapId={mapId}
         mapName={map.name}
-        view="editor"
+        view="node"
         onRenameMap={(name) => updateMap.mutate({ name })}
+        onReset={map.lifecycle === 'sample' ? handleReset : undefined}
         actions={<button onClick={handleAddStep}>+ Add step</button>}
       />
 

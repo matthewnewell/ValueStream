@@ -84,11 +84,22 @@ def list_templates():
 
 @bp.get("/sample")
 def get_sample():
-    """The one canned demo map the nav's "Sample Map" opens — read-only, not tied to a project.
-    404 if none is configured (seed tags exactly one map lifecycle='sample')."""
+    """The one demo map the nav's "Sample Map" opens — an editable sandbox, not tied to a
+    project. 404 if none is configured (seed tags exactly one map lifecycle='sample')."""
     m = Map.query.filter_by(lifecycle="sample").first()
     if m is None:
         return jsonify({"error": "no sample map is configured"}), 404
+    return jsonify(m.to_dict(include_graph=False))
+
+
+@bp.post("/sample/reset")
+def reset_sample():
+    """Restore the Sample Map to its seeded state — the "↺ Reset" action. Discards every edit
+    and any sub-process maps expanded off it, then rebuilds. Nobody can permanently break the
+    sample."""
+    from seed import reset_sample_map
+
+    m = reset_sample_map()
     return jsonify(m.to_dict(include_graph=False))
 
 

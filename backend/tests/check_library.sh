@@ -27,12 +27,20 @@ assert all(m['lifecycle'] == 'working' for m in d), [m['lifecycle'] for m in d]
 print('ok —', len(d), 'working map(s)')
 "
 
-echo "== GET /maps/sample: exactly one, read-only =="
+echo "== GET /maps/sample: exactly one, editable sandbox =="
 curl -s "$BASE/maps/sample" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
-assert d['lifecycle'] == 'sample' and d['read_only'] is True
+assert d['lifecycle'] == 'sample' and d['read_only'] is False
 print('ok —', d['name'])
+"
+
+echo "== POST /maps/sample/reset rebuilds it to the canonical 5 steps =="
+curl -s -X POST "$BASE/maps/sample/reset" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert d['lifecycle'] == 'sample' and d['step_count'] == 5, d
+print('ok — reset to', d['step_count'], 'steps')
 "
 
 echo "== clone the parallel-branch featured scaffold into a project =="

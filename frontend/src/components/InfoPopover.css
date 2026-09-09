@@ -1,0 +1,60 @@
+.info-pop {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.info-pop__btn {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-faint);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-pop__btn:hover,
+.info-pop__btn[aria-expanded='true'] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.info-pop__btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.info-pop__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: min(22rem, 70vw);
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  /* Reset any inherited label styling (the triggers live inside uppercased stat labels). */
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-secondary);
+  white-space: normal;
+}
+
+.info-pop__panel strong {
+  color: var(--color-text);
+  font-weight: 600;
+}

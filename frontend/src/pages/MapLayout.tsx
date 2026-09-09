@@ -3,13 +3,15 @@ import { Outlet, useParams } from 'react-router-dom'
 import { useHealth } from '../api/hooks'
 import Breadcrumb from '../components/Breadcrumb'
 import MapChatPanel from '../components/MapChatPanel'
+import VsmNav from '../components/VsmNav'
 import './MapLayout.css'
 
-/** Shared parent for /maps/:mapId and /maps/:mapId/bluf. React Router keeps this element
- * mounted while swapping only the <Outlet /> content between the editor and BLUF — that's
+/** Shared parent for /maps/:mapId and /maps/:mapId/timeline. React Router keeps this element
+ * mounted while swapping only the <Outlet /> content between the Node and Timeline views — that's
  * what makes the chat panel (and its conversation state) survive toggling between them,
- * rather than remounting fresh on every navigation. Breadcrumb lives here too instead of
- * being duplicated in both child pages. */
+ * rather than remounting fresh on every navigation. The persistent VsmNav sits on top here
+ * too (same as every other page), then Breadcrumb for nested sub-process maps, then each
+ * view's own MapToolbar. */
 export default function MapLayout() {
   const { mapId } = useParams<{ mapId: string }>()
   const { data: health } = useHealth()
@@ -19,6 +21,7 @@ export default function MapLayout() {
 
   return (
     <div className="map-layout">
+      <VsmNav />
       <Breadcrumb mapId={mapId} />
       <div className="map-layout__row">
         <div className="map-layout__main">

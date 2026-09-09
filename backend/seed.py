@@ -19,16 +19,45 @@ DAY = 86400
 def seed_if_empty():
     if Map.query.count() > 0:
         return
+    _build_sample_map()
+    db.session.commit()
 
+
+def _delete_map_tree(m: Map):
+    """Delete a map and every sub-process map its steps own, recursively. Each delete cascades
+    to that map's own steps + edges."""
+    for step in list(m.steps):
+        if step.child_map_id:
+            child = Map.query.get(step.child_map_id)
+            if child is not None:
+                _delete_map_tree(child)
+    db.session.delete(m)
+
+
+def reset_sample_map() -> Map:
+    """Restore the Sample Map to its seeded state — the "↺ Reset" action on the sample. Wipes
+    the current sample (and any sub-process maps someone expanded off it) and rebuilds it, so
+    the sample is a sandbox nobody can permanently break. Caller gets the fresh map."""
+    for existing in Map.query.filter_by(lifecycle="sample").all():
+        _delete_map_tree(existing)
+    db.session.flush()
+    m = _build_sample_map()
+    db.session.commit()
+    return m
+
+
+def _build_sample_map() -> Map:
+    """The seeded 'Bracket Assembly' value stream — a custom hardware bracket from design to
+    ship, with a branch/join (parallel procurement of a long-lead casting and stocked hardware)
+    so the CPM join logic is exercised from day one. This is the Sample Map: an editable
+    sandbox reachable from the nav, not tied to a project. Caller commits."""
     m = Map(
-        name="Demo: Bracket Assembly — Design to Ship",
+        name="Bracket Assembly",
         description=(
             "Example value stream for a custom hardware bracket: engineering design, "
             "parallel procurement of a long-lead custom casting and standard fasteners, "
             "assembly/machining, and shipment."
         ),
-        # The one read-only "Sample Map" the nav links to — a representative map to look at
-        # without opening the library. Not tied to a live project.
         lifecycle="sample",
         # Matches the demo project the sibling apps (Conway's Depot, Launchpad) also carry —
         # same project, each app's own copy of the label, tied together by convention.
@@ -73,17 +102,17 @@ def seed_if_empty():
 
     db.session.add_all([
         Edge(map_id=m.id, source_step_id=design.id, target_step_id=procure_long.id,
-             wait_time_sec=1 * DAY, label="PO approval"),
+             wait_time_sec=1 * DAY, label="PO approval", wait_kind="internal"),
         Edge(map_id=m.id, source_step_id=design.id, target_step_id=procure_std.id,
-             wait_time_sec=0.5 * DAY, label="PO approval"),
+             wait_time_sec=0.5 * DAY, label="PO approval", wait_kind="internal"),
         Edge(map_id=m.id, source_step_id=procure_long.id, target_step_id=build.id,
-             wait_time_sec=21 * DAY, label="foundry lead time"),
+             wait_time_sec=21 * DAY, label="foundry lead time", wait_kind="external"),
         Edge(map_id=m.id, source_step_id=procure_std.id, target_step_id=build.id,
-             wait_time_sec=3 * DAY, label="distributor shipping"),
+             wait_time_sec=3 * DAY, label="distributor shipping", wait_kind="external"),
         Edge(map_id=m.id, source_step_id=build.id, target_step_id=ship.id,
-             wait_time_sec=1 * DAY, label="QA hold"),
+             wait_time_sec=1 * DAY, label="QA hold", wait_kind="internal"),
     ])
-    db.session.commit()
+    return m
 
 
 # ── Map library: ISO/IEC/IEEE 15288 starter templates ──────────────────────────────────────
@@ -282,12 +311,27 @@ def seed_templates_if_missing():
     db.session.commit()
 
 
-def ensure_sample_map_tagged():
-    """Idempotent fixup for a DB created before the lifecycle column existed: the seeded demo
-    map should be the one read-only 'sample'. No-op once it's tagged (or if it was deleted)."""
-    demo = Map.query.filter(Map.name.like("Demo:%")).first()
-    if demo is not None and demo.lifecycle != "sample":
-        demo.lifecycle = "sample"
+def ensure_sample_map():
+    """Idempotent startup fixup: there is exactly one Sample Map, tagged lifecycle='sample' and
+    titled "Bracket Assembly". Covers a DB seeded before the sample concept (or the short name)
+    existed, and rebuilds the sample if it's gone entirely (someone can edit it freely now, so
+    "↺ Reset" and this are the two ways back to a known state)."""
+    m = (
+        Map.query.filter_by(lifecycle="sample").first()
+        or Map.query.filter(Map.name.like("Demo: Bracket Assembly%")).first()
+    )
+    if m is None:
+        _build_sample_map()
+        db.session.commit()
+        return
+    changed = False
+    if m.lifecycle != "sample":
+        m.lifecycle = "sample"
+        changed = True
+    if m.name != "Bracket Assembly":
+        m.name = "Bracket Assembly"
+        changed = True
+    if changed:
         db.session.commit()
 
 

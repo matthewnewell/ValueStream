@@ -30,8 +30,8 @@ export default function SplashPage() {
         <header className="splash-hero">
           <h1 className="splash-hero__title">Identify and eliminate bottlenecks</h1>
           <p className="splash-hero__sub">
-            Value Stream maps a process to scale — the work in the boxes, the waiting in the
-            gaps — and runs the critical-path math to name the one step that sets your pace.
+            Value Stream draws your process to scale — active work versus delay — and calculates
+            the critical path to pinpoint the true bottleneck.
           </p>
           <div className="splash-hero__actions">
             <Link className="splash-btn splash-btn--primary" to="/sample">
@@ -130,40 +130,34 @@ export default function SplashPage() {
             <div className="splash-card__label">During planning</div>
             <div className="splash-card__heading">Define the value stream</div>
             <p className="splash-card__body">
-              Lay out the steps and the waits before the work starts — or clone a finished map
-              from a similar project and adjust it, so you start from a real baseline instead
-              of a blank slate.
+              Outline steps and waiting periods upfront. To save time and build on realistic
+              baselines, duplicate and adjust an existing map from a similar project.
             </p>
           </div>
           <div className="splash-card">
             <div className="splash-card__label">During execution</div>
             <div className="splash-card__heading">Manage the critical path</div>
             <p className="splash-card__body">
-              While a project's running, BLUF is the PM's dashboard: lead time, the current
-              bottleneck, the single biggest wait, and which waits are inside your control
-              versus outside it. Use it to decide where to intervene this week — not to admire
-              a diagram.
+              Log actual work and true wait times as execution unfolds — turning your map into a
+              dynamic, real-time log that exposes active bottlenecks as conditions change.
             </p>
           </div>
           <div className="splash-card">
-            <div className="splash-card__label">At closeout — Lessons learned</div>
-            <div className="splash-card__heading">Capture what actually happened</div>
+            <div className="splash-card__label">At closeout</div>
+            <div className="splash-card__heading">Establish historical baselines</div>
             <p className="splash-card__body">
-              When a project wraps, the finished map is the lessons-learned artifact — not a
-              memory of how it felt, but a record of where the time actually went, like the
-              one-day approval that quietly cost three weeks of foundry lead time. A far better
-              input to the next kickoff than a retro six months later.
+              Archive the finalized value stream as an objective performance record. Grounding
+              future estimates in actual execution data ensures continuous process refinement
+              across project lifecycles.
             </p>
           </div>
           <div className="splash-card">
             <div className="splash-card__label">At the portfolio level</div>
-            <div className="splash-card__heading">Decide where to spend</div>
+            <div className="splash-card__heading">Identify systemic constraints</div>
             <p className="splash-card__body">
-              Across many closed-out maps, patterns emerge: the same kind of step keeps showing
-              up as the bottleneck, or the same category of wait keeps dominating. That's the
-              signal for where investment actually pays off — hire into a real capacity
-              constraint, fix a chronically slow process, or automate a step that's slow
-              because it's repetitive.
+              Analyze historical trends across completed maps to uncover recurring bottlenecks —
+              guiding targeted investments in capacity, process improvements, or automation where
+              they yield the highest ROI.
             </p>
           </div>
         </div>
@@ -201,7 +195,7 @@ export default function SplashPage() {
               not exist."
             </blockquote>
             <figcaption className="splash-quote__cite">
-              Elon Musk — "the algorithm," SpaceX &amp; Tesla
+              Elon Musk — "the algorithm"
             </figcaption>
           </figure>
         </section>
@@ -227,8 +221,8 @@ export default function SplashPage() {
             </li>
             <li>
               Mark each connector's wait as <strong>internal</strong> (your org controls it —
-              approvals, holds) or <strong>external</strong> (vendor, shipping), so BLUF can
-              split what's in your hands from what isn't.
+              approvals, holds) or <strong>external</strong> (vendor, shipping), so the Timeline
+              view can split what's in your hands from what isn't.
             </li>
             <li>
               <strong>File a map</strong> under a portfolio and project, or clone one from the{' '}
@@ -239,9 +233,10 @@ export default function SplashPage() {
               a value stream of its own — its metrics roll up into the parent automatically.
             </li>
             <li>
-              <strong>BLUF</strong> is where every map lands — the executive summary.{' '}
-              <strong>Edit Map</strong> is where you build the model; toggle any time. Ask the
-              chat pane about the map — it reasons from the same numbers.
+              The <strong>Timeline view</strong> is where every map lands — the critical path
+              drawn to scale, plus the analysis. The <strong>Node view</strong> is the graph:
+              structure, branches, and where you edit. Toggle any time. Ask the chat pane about
+              the map — it reasons from the same numbers.
             </li>
           </ul>
         </section>

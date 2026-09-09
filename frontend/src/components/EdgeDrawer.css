@@ -8,6 +8,7 @@
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  animation: drawer-slide-in 0.16s ease;
 }
 
 .edge-drawer__header {

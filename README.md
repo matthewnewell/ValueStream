@@ -37,7 +37,7 @@ a project. Publishing a finished map again overwrites its snapshot rather than d
 
 - **Backend**: Python 3.12 / Flask / SQLAlchemy / SQLite (WAL mode), optional Anthropic Claude,
   Google Gemini, or Ollama for AI-assisted parameter suggestions, narrative bottleneck
-  analysis, and the conversational chat on BLUF
+  analysis, and the conversational chat on the Timeline view
 - **Frontend**: React + TypeScript, [React Flow](https://reactflow.dev) for the interactive
   canvas, TanStack Query for server state
 - Matches the on-prem-friendly, AI-optional posture of this project's sibling app,
@@ -59,7 +59,7 @@ npm install
 npm run dev                        # http://localhost:5173, proxies /api to :8080
 ```
 
-A demo map ("Bracket Assembly — Design to Ship") seeds automatically on first run.
+A demo map ("Bracket Assembly") seeds automatically on first run as the read-only **Sample Map**.
 
 Run backend tests: `cd backend && .venv/bin/python -m pytest tests/ -v`
 
