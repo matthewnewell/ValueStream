@@ -130,8 +130,8 @@
 }
 
 .vsm-tl__off-text {
-  font-size: 8px;
-  fill: var(--color-text-faint);
+  font-size: 9px;
+  fill: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 

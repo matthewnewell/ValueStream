@@ -29,11 +29,13 @@ const WORK_Y = 6
 const WORK_H = 58
 const WAIT_Y = 40
 const WAIT_H = 26
-// The muted "parallel work" lane — off-critical-path steps/waits, placed under the critical
-// timeline at roughly when they run. Only drawn when there's off-path work.
-const OFF_Y = WAIT_Y + WAIT_H + 12
-const OFF_H = 18
-const MIN_OFF_W = 20
+// The muted lane below the critical timeline — off-critical-path steps/waits (they have slack),
+// laid out in flow order starting from where the branch leaves the critical path. Only drawn
+// when there's off-path work.
+const OFF_Y = WAIT_Y + WAIT_H + 14
+const OFF_H = 22
+const MIN_OFF_WORK_W = 118
+const MIN_OFF_WAIT_W = 46
 
 type WorkSeg = {
   kind: 'work'
@@ -137,7 +139,6 @@ export default function VsmTimeline({
     return placed
   })
   const trackEnd = cursor
-  const svgW = trackEnd + PAD
 
   // Piecewise-linear time -> x along the critical timeline, so off-path work can be placed by
   // its CPM earliest-start / earliest-finish.
@@ -163,25 +164,36 @@ export default function VsmTimeline({
   const critSteps = new Set(metrics.critical_step_ids)
   const critEdges = new Set(metrics.critical_edge_ids)
   const disconnected = new Set(metrics.disconnected_step_ids)
-  const offItems: OffItem[] = []
+
+  // Gather off-path steps + waits, then order them by CPM earliest-start so they read as the
+  // branch's own flow.
+  const rawOff: { kind: 'work' | 'wait'; id: string; label: string; sec: number; startSec: number }[] = []
   for (const st of map.steps) {
     const sm = metrics.step_metrics[st.id]
     if (!sm || critSteps.has(st.id) || disconnected.has(st.id)) continue
-    if (sm.earliest_start_sec == null || sm.earliest_finish_sec == null) continue
-    const x0 = timeToX(sm.earliest_start_sec)
-    const x1 = Math.max(timeToX(sm.earliest_finish_sec), x0 + MIN_OFF_W)
-    offItems.push({ kind: 'work', id: st.id, label: st.name, sec: sm.effective_processing_sec, x: x0, w: x1 - x0 })
+    if (sm.earliest_start_sec == null) continue
+    rawOff.push({ kind: 'work', id: st.id, label: st.name, sec: sm.effective_processing_sec, startSec: sm.earliest_start_sec })
   }
   for (const e of map.edges) {
     if (critEdges.has(e.id) || e.wait_time_sec <= 0) continue
     const src = metrics.step_metrics[e.source_step_id]
     if (!src || src.earliest_finish_sec == null) continue
-    const x0 = timeToX(src.earliest_finish_sec)
-    const x1 = Math.max(timeToX(src.earliest_finish_sec + e.wait_time_sec), x0 + MIN_OFF_W)
-    offItems.push({ kind: 'wait', id: e.id, label: e.label ?? '', sec: e.wait_time_sec, x: x0, w: x1 - x0 })
+    rawOff.push({ kind: 'wait', id: e.id, label: e.label ?? 'wait', sec: e.wait_time_sec, startSec: src.earliest_finish_sec })
   }
-  const hasOff = offItems.length > 0
+  rawOff.sort((a, b) => a.startSec - b.startSec || (a.kind === b.kind ? 0 : a.kind === 'work' ? -1 : 1))
 
+  // Lay them out sequentially from where the branch first diverges, wide enough to read.
+  let offCursor = rawOff.length ? timeToX(rawOff[0].startSec) : PAD
+  const offItems: OffItem[] = rawOff.map((it) => {
+    const w = it.kind === 'work' ? MIN_OFF_WORK_W : MIN_OFF_WAIT_W
+    const x = Math.max(timeToX(it.startSec), offCursor)
+    offCursor = x + w + 3
+    return { kind: it.kind, id: it.id, label: it.label, sec: it.sec, x, w }
+  })
+  const hasOff = offItems.length > 0
+  const offEnd = hasOff ? offItems[offItems.length - 1].x + offItems[offItems.length - 1].w : 0
+
+  const svgW = Math.max(trackEnd, offEnd) + PAD
   const svgH = hasOff ? OFF_Y + OFF_H + 4 : WAIT_Y + WAIT_H + 6
   const hasDrill = segs.some((s) => s.kind === 'work' && s.childMapId)
 
@@ -299,10 +311,10 @@ export default function VsmTimeline({
               return it.kind === 'work' ? (
                 <g key={it.id} className={cls} onClick={click}>
                   <title>
-                    {it.label} — {formatDuration(it.sec)} · parallel, off the critical path
+                    {it.label} — {formatDuration(it.sec)} · off the critical path, has slack
                   </title>
                   <rect className="vsm-tl__off-work" x={it.x} y={OFF_Y} width={it.w} height={OFF_H} rx="4" />
-                  <text className="vsm-tl__off-text" x={it.x + it.w / 2} y={OFF_Y + 12} textAnchor="middle">
+                  <text className="vsm-tl__off-text" x={it.x + it.w / 2} y={OFF_Y + 14} textAnchor="middle">
                     {clip(it.label, it.w)}
                   </text>
                 </g>
@@ -310,10 +322,11 @@ export default function VsmTimeline({
                 <g key={it.id} className={cls} onClick={click}>
                   <title>
                     Wait: {formatDuration(it.sec)}
-                    {it.label ? ` — ${it.label}` : ''} · parallel, off the critical path
+                    {it.label && it.label !== 'wait' ? ` — ${it.label}` : ''} · off the critical
+                    path, has slack
                   </title>
-                  <rect className="vsm-tl__off-wait" x={it.x} y={OFF_Y + 3} width={it.w} height={OFF_H - 6} />
-                  <text className="vsm-tl__off-text" x={it.x + it.w / 2} y={OFF_Y + 12} textAnchor="middle">
+                  <rect className="vsm-tl__off-wait" x={it.x} y={OFF_Y + 4} width={it.w} height={OFF_H - 8} />
+                  <text className="vsm-tl__off-text" x={it.x + it.w / 2} y={OFF_Y + 14} textAnchor="middle">
                     {formatDurationCompact(it.sec)}
                   </text>
                 </g>
@@ -334,7 +347,7 @@ export default function VsmTimeline({
         {hasOff && (
           <span className="vsm-timeline__legend-item">
             <span className="vsm-timeline__legend-swatch vsm-timeline__legend-swatch--off" />
-            Parallel (has slack)
+            Off critical path (has slack)
           </span>
         )}
         {hasDrill && (
