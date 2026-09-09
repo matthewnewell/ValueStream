@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import type { Step, StepMetric } from '../api/types'
 import { useAiSuggestStep, useCollapseStep, useDeleteStep, useUpdateStep } from '../api/hooks'
 import { formatDuration } from '../lib/duration'
+import { getAuthor, setAuthor } from '../lib/journal'
 import DurationInput from './DurationInput'
+import Journal from './Journal'
 import './StepDrawer.css'
 
 interface StepDrawerProps {
@@ -21,7 +23,6 @@ interface FormState {
   machine_time_sec: number
   operators: number
   machines: number
-  notes: string
 }
 
 function toForm(step: Step): FormState {
@@ -32,7 +33,6 @@ function toForm(step: Step): FormState {
     machine_time_sec: step.machine_time_sec,
     operators: step.operators,
     machines: step.machines,
-    notes: step.notes ?? '',
   }
 }
 
@@ -40,6 +40,8 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
   const [form, setForm] = useState<FormState>(() => toForm(step))
   const [aiRationale, setAiRationale] = useState<string | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
+  const [why, setWhy] = useState('')
+  const [name, setName] = useState(getAuthor())
 
   const updateStep = useUpdateStep(mapId)
   const deleteStep = useDeleteStep(mapId)
@@ -55,23 +57,29 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
     setForm(toForm(step))
     setAiRationale(null)
     setAiError(null)
-  }, [step.id, step.human_time_sec, step.machine_time_sec, step.operators, step.machines, step.name, step.description, step.notes])
+    setWhy('')
+  }, [step.id, step.human_time_sec, step.machine_time_sec, step.operators, step.machines, step.name, step.description])
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(step))
 
   function handleSave() {
-    updateStep.mutate({
-      stepId: step.id,
-      data: {
-        name: form.name.trim() || step.name,
-        description: form.description || null,
-        human_time_sec: form.human_time_sec,
-        machine_time_sec: form.machine_time_sec,
-        operators: form.operators,
-        machines: form.machines,
-        notes: form.notes || null,
+    if (name.trim() && name.trim() !== getAuthor()) setAuthor(name)
+    updateStep.mutate(
+      {
+        stepId: step.id,
+        data: {
+          name: form.name.trim() || step.name,
+          description: form.description || null,
+          human_time_sec: form.human_time_sec,
+          machine_time_sec: form.machine_time_sec,
+          operators: form.operators,
+          machines: form.machines,
+          author: (name.trim() || getAuthor()) || undefined,
+          journal_note: why.trim() || undefined,
+        },
       },
-    })
+      { onSuccess: () => setWhy('') },
+    )
   }
 
   function handleDelete() {
@@ -249,17 +257,27 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         </div>
       </div>
 
-      <div className="step-drawer__section">
-        <div className="step-drawer__section-header">
-          <span>Notes</span>
+      {dirty && (
+        <div className="step-drawer__why">
+          <label className="step-drawer__field-label">
+            Why this change? <span>optional — goes in the journal</span>
+          </label>
+          <textarea
+            rows={2}
+            value={why}
+            onChange={(e) => setWhy(e.target.value)}
+            placeholder="e.g. added a second shift to hit the ship date"
+          />
+          {!getAuthor() && (
+            <input
+              className="step-drawer__why-name"
+              placeholder="your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
         </div>
-        <textarea
-          value={form.notes}
-          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          rows={3}
-          placeholder="Operator notes…"
-        />
-      </div>
+      )}
 
       <div className="step-drawer__footer">
         <button className="step-drawer__delete-btn" onClick={handleDelete}>
@@ -272,6 +290,15 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         >
           {updateStep.isPending ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
         </button>
+      </div>
+
+      <div className="step-drawer__section step-drawer__journal">
+        <Journal
+          mapId={mapId}
+          target={{ type: 'step', id: step.id, name: step.name }}
+          editable
+          compact
+        />
       </div>
     </aside>
   )

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Edge, WaitKind } from '../api/types'
 import { useDeleteEdge, useUpdateEdge } from '../api/hooks'
+import { getAuthor, setAuthor } from '../lib/journal'
 import DurationInput from './DurationInput'
+import Journal from './Journal'
 import './EdgeDrawer.css'
 
 interface EdgeDrawerProps {
@@ -16,6 +18,8 @@ export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName
   const [waitSec, setWaitSec] = useState(edge.wait_time_sec)
   const [label, setLabel] = useState(edge.label ?? '')
   const [waitKind, setWaitKind] = useState<WaitKind>(edge.wait_kind)
+  const [why, setWhy] = useState('')
+  const [name, setName] = useState(getAuthor())
 
   const updateEdge = useUpdateEdge(mapId)
   const deleteEdge = useDeleteEdge(mapId)
@@ -26,16 +30,27 @@ export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName
     setWaitSec(edge.wait_time_sec)
     setLabel(edge.label ?? '')
     setWaitKind(edge.wait_kind)
+    setWhy('')
   }, [edge.id, edge.wait_time_sec, edge.label, edge.wait_kind])
 
   const dirty =
     waitSec !== edge.wait_time_sec || label !== (edge.label ?? '') || waitKind !== edge.wait_kind
 
   function handleSave() {
-    updateEdge.mutate({
-      edgeId: edge.id,
-      data: { wait_time_sec: waitSec, label: label.trim() || null, wait_kind: waitKind },
-    })
+    if (name.trim() && name.trim() !== getAuthor()) setAuthor(name)
+    updateEdge.mutate(
+      {
+        edgeId: edge.id,
+        data: {
+          wait_time_sec: waitSec,
+          label: label.trim() || null,
+          wait_kind: waitKind,
+          author: (name.trim() || getAuthor()) || undefined,
+          journal_note: why.trim() || undefined,
+        },
+      },
+      { onSuccess: () => setWhy('') },
+    )
   }
 
   function handleDelete() {
@@ -96,6 +111,28 @@ export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName
         />
       </label>
 
+      {dirty && (
+        <div className="edge-drawer__why">
+          <span className="edge-drawer__field-label">
+            Why this change? <span className="edge-drawer__why-hint">optional — goes in the journal</span>
+          </span>
+          <textarea
+            rows={2}
+            value={why}
+            onChange={(e) => setWhy(e.target.value)}
+            placeholder="e.g. foundry pushed the batch a week"
+          />
+          {!getAuthor() && (
+            <input
+              className="edge-drawer__label-input"
+              placeholder="your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
+        </div>
+      )}
+
       <div className="edge-drawer__footer">
         <button className="edge-drawer__delete-btn" onClick={handleDelete}>
           Delete connector
@@ -107,6 +144,15 @@ export default function EdgeDrawer({ mapId, edge, sourceStepName, targetStepName
         >
           {updateEdge.isPending ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
         </button>
+      </div>
+
+      <div className="edge-drawer__journal">
+        <Journal
+          mapId={mapId}
+          target={{ type: 'edge', id: edge.id, name: `${sourceStepName} → ${targetStepName}` }}
+          editable
+          compact
+        />
       </div>
     </aside>
   )

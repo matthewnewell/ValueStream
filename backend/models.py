@@ -97,6 +97,12 @@ class Map(db.Model):
     edges = db.relationship(
         "Edge", backref="map", cascade="all, delete-orphan", lazy="selectin"
     )
+    # The journal. Deleting a map (or resetting the sample) takes its journal with it — there's
+    # nothing to attribute the entries to anymore. lazy="select" so ordinary map queries don't
+    # drag the whole history along; it's only loaded when the /events route asks or on delete.
+    events = db.relationship(
+        "MapEvent", backref="map", cascade="all, delete-orphan", lazy="select"
+    )
 
     @property
     def read_only(self) -> bool:
@@ -210,4 +216,54 @@ class Edge(db.Model):
             "label": self.label,
             "kind": self.kind,
             "wait_kind": self.wait_kind,
+        }
+
+
+class MapEvent(db.Model):
+    """The map's journal — an append-only log. Two kinds of entry:
+      - "change": auto-captured when a step/edge field the PM cares about is edited (one row per
+        changed field), with the old and new value frozen as display strings.
+      - "note": a manual entry an operator writes — "why/who/what" behind an adjustment, or a
+        standalone observation ("foundry called, whole program slips a week").
+    Nothing here is ever updated or (for "change" rows) deleted; it's the project's memory,
+    and the far-better input to the next kickoff the splash page talks about. No auth, so
+    `author` is a free-text name the frontend remembers in localStorage.
+    """
+
+    __tablename__ = "map_event"
+
+    id = db.Column(db.String(36), primary_key=True, default=_uuid)
+    map_id = db.Column(db.String(36), db.ForeignKey("map.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=_now, nullable=False, index=True)
+    author = db.Column(db.String(120), nullable=True)
+
+    # What the entry is about. target_name is denormalized so a deleted step's history still
+    # reads sensibly. target_type "map" (or null) is a map-level entry, not tied to one element.
+    target_type = db.Column(db.String(20), nullable=True)  # "step" | "edge" | "map" | None
+    target_id = db.Column(db.String(36), nullable=True, index=True)
+    target_name = db.Column(db.String(200), nullable=True)
+
+    kind = db.Column(db.String(20), nullable=False, default="note")  # "note" | "change"
+
+    # kind="change" only — the auto-captured diff, already formatted for display.
+    field = db.Column(db.String(60), nullable=True)
+    old_value = db.Column(db.Text, nullable=True)
+    new_value = db.Column(db.Text, nullable=True)
+
+    note = db.Column(db.Text, nullable=True)  # kind="note", or optional context on a "change"
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "map_id": self.map_id,
+            "created_at": self.created_at.isoformat(),
+            "author": self.author,
+            "target_type": self.target_type,
+            "target_id": self.target_id,
+            "target_name": self.target_name,
+            "kind": self.kind,
+            "field": self.field,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "note": self.note,
         }

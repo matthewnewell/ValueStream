@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+import journal
 from db import db
 from models import Edge, Map, Step
 
@@ -50,12 +51,19 @@ def update_step(step_id):
     # Partial merge: only touch fields present in the body. Position-drag autosave sends
     # {pos_x, pos_y} on every drag-stop; drawer field edits send the time/operator fields
     # separately — a full-object PUT would let one clobber fields the other didn't intend to.
+    before = {f: getattr(step, f) for f in journal.STEP_FIELDS}
     for field in _EDITABLE_FIELDS:
         if field in body:
             setattr(step, field, body[field])
 
     if "name" in body and not (step.name or "").strip():
         return jsonify({"error": "name cannot be empty"}), 400
+
+    after = {f: getattr(step, f) for f in journal.STEP_FIELDS}
+    journal.record_changes(
+        step.map_id, "step", step.id, step.name, before, after, journal.STEP_FIELDS,
+        author=body.get("author"), note=body.get("journal_note"),
+    )
 
     db.session.commit()
     return jsonify(step.to_dict())

@@ -42,6 +42,24 @@ export interface LibraryEntry extends MapSummary {
   used_by_projects: number
 }
 
+/** One entry in a map's journal (GET /api/maps/:id/events). `change` rows are auto-captured
+ * when a step/edge field is edited (old/new frozen as display strings); `note` rows are what
+ * an operator writes. Entries from one save share `created_at` exactly. */
+export interface MapEvent {
+  id: string
+  map_id: string
+  created_at: string
+  author: string | null
+  target_type: 'step' | 'edge' | 'map' | null
+  target_id: string | null
+  target_name: string | null
+  kind: 'note' | 'change'
+  field: string | null
+  old_value: string | null
+  new_value: string | null
+  note: string | null
+}
+
 export interface Step {
   id: string
   map_id: string

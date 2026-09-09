@@ -8,6 +8,7 @@ import type {
   LibraryEntry,
   MapBreadcrumbEntry,
   MapDetail,
+  MapEvent,
   MapMetrics,
   MapSummary,
   Step,
@@ -78,10 +79,48 @@ export function useMapBreadcrumb(mapId: string | undefined) {
 function useInvalidateMap(mapId: string | undefined) {
   const qc = useQueryClient()
   return () => {
+    // ['maps', mapId] prefix-matches the graph, metrics, breadcrumb AND events queries — an
+    // edit's auto-captured journal entries show up on the next render without a separate call.
     qc.invalidateQueries({ queryKey: ['maps', mapId] })
-    qc.invalidateQueries({ queryKey: ['maps', mapId, 'metrics'] })
     qc.invalidateQueries({ queryKey: ['maps'] })
   }
+}
+
+// ── Journal ──────────────────────────────────────────────────────────────────
+
+/** The map's journal. Pass `targetId` to scope it to one step/edge (the drawer view);
+ * omit for the whole-map feed. */
+export function useMapEvents(mapId: string | undefined, targetId?: string) {
+  return useQuery({
+    queryKey: ['maps', mapId, 'events', targetId ?? 'all'],
+    queryFn: () =>
+      api.get<MapEvent[]>(
+        `/maps/${mapId}/events${targetId ? `?target_id=${encodeURIComponent(targetId)}` : ''}`,
+      ),
+    enabled: !!mapId,
+  })
+}
+
+export function useAddMapEvent(mapId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      note: string
+      author?: string
+      target_type?: 'step' | 'edge' | 'map'
+      target_id?: string
+      target_name?: string
+    }) => api.post<MapEvent>(`/maps/${mapId}/events`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['maps', mapId, 'events'] }),
+  })
+}
+
+export function useDeleteMapEvent(mapId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (eventId: string) => api.del<void>(`/maps/${mapId}/events/${eventId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['maps', mapId, 'events'] }),
+  })
 }
 
 export function useCreateMap() {
@@ -168,11 +207,19 @@ export function useCreateStep(mapId: string) {
   })
 }
 
+/** `data` may carry `author` / `journal_note` alongside the field changes — the backend
+ * strips them from the row update and uses them to attribute the auto-captured journal
+ * entries (and attach the optional "why" note). */
 export function useUpdateStep(mapId: string) {
   const invalidate = useInvalidateMap(mapId)
   return useMutation({
-    mutationFn: ({ stepId, data }: { stepId: string; data: Partial<Step> }) =>
-      api.put<Step>(`/steps/${stepId}`, data),
+    mutationFn: ({
+      stepId,
+      data,
+    }: {
+      stepId: string
+      data: Partial<Step> & { author?: string; journal_note?: string }
+    }) => api.put<Step>(`/steps/${stepId}`, data),
     onSuccess: invalidate,
   })
 }
@@ -215,8 +262,13 @@ export function useCreateEdge(mapId: string) {
 export function useUpdateEdge(mapId: string) {
   const invalidate = useInvalidateMap(mapId)
   return useMutation({
-    mutationFn: ({ edgeId, data }: { edgeId: string; data: Partial<Edge> }) =>
-      api.put<Edge>(`/edges/${edgeId}`, data),
+    mutationFn: ({
+      edgeId,
+      data,
+    }: {
+      edgeId: string
+      data: Partial<Edge> & { author?: string; journal_note?: string }
+    }) => api.put<Edge>(`/edges/${edgeId}`, data),
     onSuccess: invalidate,
   })
 }

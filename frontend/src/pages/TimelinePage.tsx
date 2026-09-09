@@ -11,6 +11,7 @@ import {
 import type { MapMetrics, Step, WaitKind } from '../api/types'
 import EdgeDrawer from '../components/EdgeDrawer'
 import InfoPopover from '../components/InfoPopover'
+import Journal from '../components/Journal'
 import MapToolbar from '../components/MapToolbar'
 import StepDrawer from '../components/StepDrawer'
 import VsmTimeline from '../components/VsmTimeline'
@@ -383,6 +384,10 @@ export default function TimelinePage() {
                 </ol>
               </>
             )}
+          </section>
+
+          <section className="tv-section">
+            <Journal mapId={mapId} editable={editable} />
           </section>
         </div>
 
