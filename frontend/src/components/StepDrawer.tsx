@@ -14,8 +14,6 @@ interface StepDrawerProps {
   onClose: () => void
   /** Open (or create-then-open) this step's sub-process map. */
   onExpand: () => void
-  /** The Node view opens straight into the edit form; the Timeline opens read-first. */
-  defaultMode?: 'read' | 'edit'
 }
 
 interface FormState {
@@ -47,15 +45,8 @@ function critLine(m: StepMetric | undefined): string | null {
   return 'Off the critical path.'
 }
 
-export default function StepDrawer({
-  mapId,
-  step,
-  metric,
-  onClose,
-  onExpand,
-  defaultMode = 'read',
-}: StepDrawerProps) {
-  const [mode, setMode] = useState<'read' | 'edit'>(defaultMode)
+export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: StepDrawerProps) {
+  const [mode, setMode] = useState<'read' | 'edit'>('read')
   const [form, setForm] = useState<FormState>(() => toForm(step))
   const [why, setWhy] = useState('')
   const [name, setName] = useState(getAuthor())
@@ -71,7 +62,7 @@ export default function StepDrawer({
   useEffect(() => {
     setForm(toForm(step))
     setWhy('')
-    setMode(defaultMode)
+    setMode('read')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id])
 
@@ -97,7 +88,7 @@ export default function StepDrawer({
         onSuccess: (updated) => {
           setForm(toForm(updated))
           setWhy('')
-          setMode(defaultMode === 'edit' ? 'edit' : 'read')
+          setMode('read')
         },
       },
     )
@@ -357,18 +348,16 @@ export default function StepDrawer({
           Delete
         </button>
         <div className="step-drawer__footer-right">
-          {defaultMode !== 'edit' && (
-            <button
-              className="step-drawer__cancel-btn"
-              onClick={() => {
-                setForm(toForm(step))
-                setWhy('')
-                setMode('read')
-              }}
-            >
-              Cancel
-            </button>
-          )}
+          <button
+            className="step-drawer__cancel-btn"
+            onClick={() => {
+              setForm(toForm(step))
+              setWhy('')
+              setMode('read')
+            }}
+          >
+            Cancel
+          </button>
           <button
             className="step-drawer__save-btn"
             onClick={handleSave}

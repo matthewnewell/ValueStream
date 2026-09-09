@@ -87,8 +87,6 @@ export default function Journal({ mapId, target, editable, compact }: JournalPro
 
   return (
     <div className={`journal${compact ? ' journal--compact' : ''}`}>
-      {!compact && <h2 className="journal__title">Journal</h2>}
-
       {editable && (
         <div className="journal__composer">
           <textarea

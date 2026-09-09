@@ -5,99 +5,69 @@ import './MetricsBar.css'
 interface MetricsBarProps {
   metrics: MapMetrics | undefined
   isLoading: boolean
+  onAddStep: () => void
 }
 
-export default function MetricsBar({ metrics, isLoading }: MetricsBarProps) {
-  if (isLoading || !metrics) {
-    return (
-      <div className="metrics-bar metrics-bar--loading">
-        <span>Computing metrics…</span>
-      </div>
-    )
-  }
-
+/** The Node view's own strip: the map-wide numbers, plus the one action unique to this view.
+ * The "where to focus" reads (bottleneck, dominant delay) live on the Timeline view — no need
+ * to repeat them while you're editing structure here. */
+export default function MetricsBar({ metrics, isLoading, onAddStep }: MetricsBarProps) {
   const warnings: string[] = []
-  if (metrics.disconnected_step_ids.length > 0) {
-    warnings.push(
-      `${metrics.disconnected_step_ids.length} step${metrics.disconnected_step_ids.length > 1 ? 's' : ''} not connected to the main flow`,
-    )
-  }
-  if (metrics.cycles_detected.length > 0) {
-    warnings.push(`${metrics.cycles_detected.length} loop(s) detected and excluded from lead-time calc`)
+  if (metrics) {
+    if (metrics.disconnected_step_ids.length > 0) {
+      warnings.push(
+        `${metrics.disconnected_step_ids.length} step${metrics.disconnected_step_ids.length > 1 ? 's' : ''} not connected to the main flow`,
+      )
+    }
+    if (metrics.cycles_detected.length > 0) {
+      warnings.push(
+        `${metrics.cycles_detected.length} loop(s) detected and excluded from lead-time calc`,
+      )
+    }
   }
 
   return (
     <div className="metrics-bar">
-      <div className="metrics-bar__stat">
-        <span className="metrics-bar__stat-label">Lead time</span>
-        <span className="metrics-bar__stat-value">{formatDuration(metrics.lead_time_sec)}</span>
-      </div>
-      <div className="metrics-bar__stat">
-        <span className="metrics-bar__stat-label">Processing time</span>
-        <span className="metrics-bar__stat-value">
-          {formatDuration(metrics.total_processing_time_sec)}
-        </span>
-      </div>
-      <div className="metrics-bar__stat">
-        <span className="metrics-bar__stat-label">Process cycle efficiency</span>
-        <span className="metrics-bar__stat-value">
-          {metrics.process_cycle_efficiency_pct.toFixed(1)}%
-        </span>
-      </div>
-      <div className="metrics-bar__divider" />
-      <div className="metrics-bar__stat metrics-bar__stat--bottleneck">
-        <span className="metrics-bar__stat-label" title="The busiest single work step — the constraint on throughput, not necessarily what's driving the calendar">
-          Capacity bottleneck
-        </span>
-        <span className="metrics-bar__stat-value">
-          {metrics.deepest_bottleneck ? (
-            <>
-              🔥 {metrics.deepest_bottleneck.name}{' '}
-              <span className="metrics-bar__stat-sub">
-                ({formatDuration(metrics.deepest_bottleneck.processing_time_sec)}
-                {!metrics.deepest_bottleneck.on_critical_path && ', off critical path'})
+      {isLoading || !metrics ? (
+        <span className="metrics-bar__loading">Computing metrics…</span>
+      ) : (
+        <>
+          <div className="metrics-bar__stats">
+            <div className="metrics-bar__stat">
+              <span className="metrics-bar__stat-label">Lead time</span>
+              <span className="metrics-bar__stat-value">
+                {formatDuration(metrics.lead_time_sec)}
               </span>
-            </>
-          ) : (
-            '—'
+            </div>
+            <div className="metrics-bar__stat">
+              <span className="metrics-bar__stat-label">Processing time</span>
+              <span className="metrics-bar__stat-value">
+                {formatDuration(metrics.total_processing_time_sec)}
+              </span>
+            </div>
+            <div className="metrics-bar__stat">
+              <span className="metrics-bar__stat-label">Process cycle efficiency</span>
+              <span className="metrics-bar__stat-value">
+                {metrics.process_cycle_efficiency_pct.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          {warnings.length > 0 && (
+            <div className="metrics-bar__warnings">
+              {warnings.map((w) => (
+                <span key={w} className="metrics-bar__warning">
+                  ⚠ {w}
+                </span>
+              ))}
+            </div>
           )}
-        </span>
-        {metrics.deepest_bottleneck && metrics.deepest_bottleneck.breadcrumb.length > 1 && (
-          <span className="metrics-bar__stat-path">
-            inside{' '}
-            {metrics.deepest_bottleneck.breadcrumb
-              .slice(0, -1)
-              .map((h) => h.step_name)
-              .join(' › ')}
-          </span>
-        )}
-      </div>
-
-      {metrics.wait_contributors.length > 0 && (
-        <div className="metrics-bar__stat metrics-bar__stat--delay">
-          <span className="metrics-bar__stat-label" title="The single biggest driver of this map's lead time — often a different step than the capacity bottleneck">
-            Dominant delay
-          </span>
-          <span className="metrics-bar__stat-value">
-            ⏳ {metrics.wait_contributors[0].source_step_name}
-            {' → '}
-            {metrics.wait_contributors[0].target_step_name}{' '}
-            <span className="metrics-bar__stat-sub">
-              ({formatDuration(metrics.wait_contributors[0].wait_time_sec)})
-            </span>
-          </span>
-        </div>
+        </>
       )}
 
-      {warnings.length > 0 && (
-        <div className="metrics-bar__warnings">
-          {warnings.map((w) => (
-            <span key={w} className="metrics-bar__warning">
-              ⚠ {w}
-            </span>
-          ))}
-        </div>
-      )}
+      <button className="metrics-bar__add" onClick={onAddStep}>
+        + Add step
+      </button>
     </div>
   )
 }

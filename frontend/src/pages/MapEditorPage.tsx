@@ -90,10 +90,13 @@ export default function MapEditorPage() {
         view="node"
         onRenameMap={(name) => updateMap.mutate({ name })}
         onReset={map.lifecycle === 'sample' ? handleReset : undefined}
-        actions={<button onClick={handleAddStep}>+ Add step</button>}
       />
 
-      <MetricsBar metrics={metrics} isLoading={metricsLoading} />
+      <MetricsBar
+        metrics={metrics}
+        isLoading={metricsLoading}
+        onAddStep={handleAddStep}
+      />
 
       <div className="map-editor-page__body">
         <div className="map-editor-page__canvas">
@@ -114,7 +117,6 @@ export default function MapEditorPage() {
             mapId={mapId}
             step={selectedStep}
             metric={metrics?.step_metrics[selectedStep.id]}
-            defaultMode="edit"
             onClose={() => setSelectedStepId(null)}
             onExpand={() => handleExpandStep(selectedStep.id)}
           />
@@ -125,7 +127,6 @@ export default function MapEditorPage() {
             mapId={mapId}
             edge={selectedEdge}
             metrics={metrics}
-            defaultMode="edit"
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelectedEdgeId(null)}

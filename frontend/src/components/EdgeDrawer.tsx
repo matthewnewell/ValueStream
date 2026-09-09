@@ -14,8 +14,6 @@ interface EdgeDrawerProps {
   targetStepName: string
   metrics?: MapMetrics
   onClose: () => void
-  /** The Node view opens straight into the edit form; the Timeline opens read-first. */
-  defaultMode?: 'read' | 'edit'
 }
 
 const KIND_LABEL: Record<'internal' | 'external', string> = {
@@ -30,9 +28,8 @@ export default function EdgeDrawer({
   targetStepName,
   metrics,
   onClose,
-  defaultMode = 'read',
 }: EdgeDrawerProps) {
-  const [mode, setMode] = useState<'read' | 'edit'>(defaultMode)
+  const [mode, setMode] = useState<'read' | 'edit'>('read')
   const [waitSec, setWaitSec] = useState(edge.wait_time_sec)
   const [label, setLabel] = useState(edge.label ?? '')
   const [waitKind, setWaitKind] = useState<WaitKind>(edge.wait_kind)
@@ -54,7 +51,7 @@ export default function EdgeDrawer({
     setLabel(edge.label ?? '')
     setWaitKind(edge.wait_kind)
     setWhy('')
-    setMode(defaultMode)
+    setMode('read')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edge.id])
 
@@ -80,7 +77,7 @@ export default function EdgeDrawer({
           setLabel(updated.label ?? '')
           setWaitKind(updated.wait_kind)
           setWhy('')
-          setMode(defaultMode === 'edit' ? 'edit' : 'read')
+          setMode('read')
         },
       },
     )
@@ -233,20 +230,18 @@ export default function EdgeDrawer({
           Delete
         </button>
         <div className="edge-drawer__footer-right">
-          {defaultMode !== 'edit' && (
-            <button
-              className="edge-drawer__cancel-btn"
-              onClick={() => {
-                setWaitSec(edge.wait_time_sec)
-                setLabel(edge.label ?? '')
-                setWaitKind(edge.wait_kind)
-                setWhy('')
-                setMode('read')
-              }}
-            >
-              Cancel
-            </button>
-          )}
+          <button
+            className="edge-drawer__cancel-btn"
+            onClick={() => {
+              setWaitSec(edge.wait_time_sec)
+              setLabel(edge.label ?? '')
+              setWaitKind(edge.wait_kind)
+              setWhy('')
+              setMode('read')
+            }}
+          >
+            Cancel
+          </button>
           <button
             className="edge-drawer__save-btn"
             onClick={handleSave}

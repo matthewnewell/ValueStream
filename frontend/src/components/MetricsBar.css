@@ -1,16 +1,23 @@
 .metrics-bar {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   padding: 10px 20px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
 
-.metrics-bar--loading {
+.metrics-bar__loading {
   color: var(--color-text-faint);
   font-size: 13px;
+}
+
+.metrics-bar__stats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
 }
 
 .metrics-bar__stat {
@@ -34,36 +41,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.metrics-bar__stat-sub {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
-.metrics-bar__stat--bottleneck .metrics-bar__stat-value {
-  color: var(--color-critical);
-}
-
-.metrics-bar__stat--delay .metrics-bar__stat-value {
-  color: var(--color-wait);
-}
-
-.metrics-bar__stat-path {
-  font-size: 11px;
-  color: var(--color-text-faint);
-  font-style: italic;
-}
-
-.metrics-bar__divider {
-  width: 1px;
-  height: 28px;
-  background: var(--color-border);
-}
-
 .metrics-bar__warnings {
   display: flex;
   gap: 10px;
-  margin-left: auto;
 }
 
 .metrics-bar__warning {
@@ -73,4 +53,22 @@
   padding: 4px 10px;
   border-radius: 999px;
   font-weight: 600;
+}
+
+/* The one action unique to the Node view — pinned to the right of the strip. */
+.metrics-bar__add {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.metrics-bar__add:hover {
+  background: var(--color-accent-hover);
 }
