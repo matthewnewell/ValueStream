@@ -23,6 +23,7 @@ interface FormState {
   machine_time_sec: number
   operators: number
   machines: number
+  pct_complete_accurate: number | null
 }
 
 function toForm(step: Step): FormState {
@@ -33,6 +34,7 @@ function toForm(step: Step): FormState {
     machine_time_sec: step.machine_time_sec,
     operators: step.operators,
     machines: step.machines,
+    pct_complete_accurate: step.pct_complete_accurate,
   }
 }
 
@@ -80,6 +82,7 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
           machine_time_sec: form.machine_time_sec,
           operators: form.operators,
           machines: form.machines,
+          pct_complete_accurate: form.pct_complete_accurate,
           author: (name.trim() || getAuthor()) || undefined,
           journal_note: why.trim() || undefined,
         },
@@ -174,6 +177,16 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
               </div>
             </>
           )}
+          <div className="step-drawer__fact">
+            <dt>%C&amp;A</dt>
+            <dd>
+              {step.pct_complete_accurate != null ? (
+                `${step.pct_complete_accurate.toFixed(0)}% complete & accurate`
+              ) : (
+                <span className="step-drawer__fact-sub">not assessed</span>
+              )}
+            </dd>
+          </div>
           {crit && (
             <div
               className={`step-drawer__fact step-drawer__fact--status${metric?.is_critical ? ' step-drawer__fact--critical' : ''}`}
@@ -321,6 +334,36 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
             />
           </label>
         </div>
+      </div>
+
+      <div className="step-drawer__section">
+        <div className="step-drawer__section-header">
+          <span>%C&amp;A</span>
+        </div>
+        <label className="step-drawer__number step-drawer__ca">
+          <span>Percent complete &amp; accurate</span>
+          <div className="step-drawer__ca-row">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="not assessed"
+              value={form.pct_complete_accurate ?? ''}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  pct_complete_accurate:
+                    e.target.value === '' ? null : Number(e.target.value),
+                }))
+              }
+            />
+            <span className="step-drawer__ca-pct">%</span>
+          </div>
+          <span className="step-drawer__ca-hint">
+            Of what this step hands downstream, how much is right the first time — no
+            clarification, correction, or missing pieces.
+          </span>
+        </label>
       </div>
 
       <div className="step-drawer__why">

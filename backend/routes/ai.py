@@ -21,6 +21,20 @@ def _build_context_lines(m: Map, metrics: dict) -> list[str]:
         f"process cycle efficiency: {metrics['process_cycle_efficiency_pct']:.1f}%",
     ]
 
+    if metrics.get("rolled_pct_ca") is not None:
+        lines.append(
+            f"Rolled %C&A (Percent Complete & Accurate, compounded along the critical path): "
+            f"{metrics['rolled_pct_ca']:.0f}% ({metrics['ca_assessed_count']} steps assessed)."
+        )
+    for r in metrics.get("rework_loops", []):
+        lines.append(
+            f"Rework loop: a defect from \"{r['origin_step_name']}\" caught at "
+            f"\"{r['detection_step_name']}\" fires ~{r['rate_pct']:.0f}% of the time and "
+            f"re-runs a {r['loop_cost_sec']:.0f}s segment — expected drag on lead time "
+            f"{r['expected_extra_sec']:.0f}s. Expected lead time with rework: "
+            f"{metrics['expected_lead_time_sec']:.0f}s."
+        )
+
     # deepest_bottleneck, not the plain top-level bottleneck: for a step that owns a child
     # map, the top-level one just says "Design, 3.2 weeks" — deepest_bottleneck drills through
     # however many levels of nesting to the actual leaf step responsible, which is what an

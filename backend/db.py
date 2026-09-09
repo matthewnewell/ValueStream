@@ -53,6 +53,10 @@ _MIGRATIONS = [
     ("map", "cloned_from_map_id", "ALTER TABLE map ADD COLUMN cloned_from_map_id VARCHAR(36) REFERENCES map(id)"),
     ("map", "published_from_map_id", "ALTER TABLE map ADD COLUMN published_from_map_id VARCHAR(36) REFERENCES map(id)"),
     ("map", "published_at", "ALTER TABLE map ADD COLUMN published_at DATETIME"),
+    # Quality / rework model. pct_complete_accurate: Lean VSM %C&A per step. rework_rate:
+    # the escape rate on a kind="rework" edge (null → derived from the origin step's %C&A).
+    ("step", "pct_complete_accurate", "ALTER TABLE step ADD COLUMN pct_complete_accurate FLOAT"),
+    ("edge", "rework_rate", "ALTER TABLE edge ADD COLUMN rework_rate FLOAT"),
 ]
 
 

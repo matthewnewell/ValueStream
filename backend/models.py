@@ -157,6 +157,13 @@ class Step(db.Model):
     notes = db.Column(db.Text, nullable=True)
     ai_rationale = db.Column(db.Text, nullable=True)
 
+    # Percent Complete & Accurate (Lean VSM): the operator's estimate of how much of what this
+    # step hands downstream is usable as-is — no clarification, correction, or missing pieces.
+    # 0–100; null = not assessed. The engine compounds these along the critical path into a
+    # "rolled %C&A", and a defect that escapes here is what a kind="rework" edge back to an
+    # earlier step models the cost of.
+    pct_complete_accurate = db.Column(db.Float, nullable=True)
+
     # Nullable link to a sub-process map "inside" this step. SET NULL on delete so removing
     # the child map (the /child-map collapse route) doesn't require deleting the step itself.
     # Never set directly via PUT /api/steps/<id> — only ever created through /expand, which is
@@ -181,6 +188,7 @@ class Step(db.Model):
             "notes": self.notes,
             "ai_rationale": self.ai_rationale,
             "child_map_id": self.child_map_id,
+            "pct_complete_accurate": self.pct_complete_accurate,
         }
 
 
@@ -197,7 +205,13 @@ class Edge(db.Model):
 
     wait_time_sec = db.Column(db.Float, default=0.0, nullable=False)
     label = db.Column(db.String(200), nullable=True)
+    # "flow" (a normal forward connector) or "rework" (a loop from a detection step back to
+    # where the defect must be fixed — invisible to CPM, but the engine charges its expected
+    # cost against lead time). See engine.compute_metrics.
     kind = db.Column(db.String(20), default="flow", nullable=False)
+    # rework edges only: the fraction of units (0–100) that hit this loop. Null → the engine
+    # derives it from 1 − (origin step's %C&A).
+    rework_rate = db.Column(db.Float, nullable=True)
 
     # Whether this wait is something the operator's own org controls (an internal queue —
     # approvals, sign-offs, QA holds) or sits outside their control (external — vendor lead
@@ -216,6 +230,7 @@ class Edge(db.Model):
             "label": self.label,
             "kind": self.kind,
             "wait_kind": self.wait_kind,
+            "rework_rate": self.rework_rate,
         }
 
 

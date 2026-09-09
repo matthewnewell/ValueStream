@@ -18,12 +18,15 @@ STEP_FIELDS = {
     "operators": "operators",
     "machines": "machines",
     "description": "description",
+    "pct_complete_accurate": "%C&A",
 }
 
 EDGE_FIELDS = {
     "wait_time_sec": "wait time",
     "label": "label",
     "wait_kind": "who controls it",
+    "kind": "connector type",
+    "rework_rate": "rework rate",
 }
 
 _UNITS = (("wk", 604800), ("d", 86400), ("h", 3600), ("m", 60))
@@ -44,6 +47,8 @@ def _fmt(field: str, value) -> str:
             if s >= size:
                 return f"{_num(s / size)}{unit}"
         return f"{_num(s)}s"
+    if field in ("pct_complete_accurate", "rework_rate"):
+        return f"{_num(value)}%"
     return str(value)
 
 

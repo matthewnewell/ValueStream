@@ -41,6 +41,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.metrics-bar__stat-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
 .metrics-bar__warnings {
   display: flex;
   gap: 10px;

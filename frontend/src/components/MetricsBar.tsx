@@ -37,6 +37,12 @@ export default function MetricsBar({ metrics, isLoading, onAddStep }: MetricsBar
               <span className="metrics-bar__stat-label">Lead time</span>
               <span className="metrics-bar__stat-value">
                 {formatDuration(metrics.lead_time_sec)}
+                {metrics.expected_lead_time_sec > metrics.lead_time_sec + 1 && (
+                  <span className="metrics-bar__stat-sub">
+                    {' '}
+                    · ~{formatDuration(metrics.expected_lead_time_sec)} w/ rework
+                  </span>
+                )}
               </span>
             </div>
             <div className="metrics-bar__stat">
@@ -51,6 +57,14 @@ export default function MetricsBar({ metrics, isLoading, onAddStep }: MetricsBar
                 {metrics.process_cycle_efficiency_pct.toFixed(1)}%
               </span>
             </div>
+            {metrics.rolled_pct_ca != null && (
+              <div className="metrics-bar__stat">
+                <span className="metrics-bar__stat-label">Rolled %C&amp;A</span>
+                <span className="metrics-bar__stat-value">
+                  {metrics.rolled_pct_ca.toFixed(0)}%
+                </span>
+              </div>
+            )}
           </div>
 
           {warnings.length > 0 && (

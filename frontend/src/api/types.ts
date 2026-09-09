@@ -75,6 +75,9 @@ export interface Step {
   ai_rationale: string | null
   /** Set only through POST /steps/:id/expand — never editable via PUT. */
   child_map_id: string | null
+  /** Lean VSM Percent Complete & Accurate: how much of what this step hands downstream is
+   * usable as-is. 0–100; null = not assessed. */
+  pct_complete_accurate: number | null
 }
 
 /** Who can act on a wait: "internal" (the operator's own org controls it — approvals,
@@ -89,8 +92,12 @@ export interface Edge {
   target_step_id: string
   wait_time_sec: number
   label: string | null
+  /** "flow" = a normal forward connector; "rework" = a loop from a detection step back to
+   * where the defect must be fixed (invisible to CPM, charged against lead time by expectation). */
   kind: string
   wait_kind: WaitKind
+  /** rework edges only: escape rate 0–100; null → derived from the origin step's %C&A. */
+  rework_rate: number | null
 }
 
 export interface MapDetail extends MapSummary {
@@ -186,12 +193,33 @@ export interface StepMetric {
   effective_wait_sec: number
 }
 
+/** One rework loop (a kind="rework" edge). `expected_extra_sec` is what it adds to lead time
+ * by expectation — `rate/(1-rate) × loop_cost`. */
+export interface ReworkLoop {
+  edge_id: string
+  origin_step_id: string
+  origin_step_name: string | null
+  detection_step_id: string
+  detection_step_name: string | null
+  rate_pct: number
+  loop_cost_sec: number
+  expected_extra_sec: number
+}
+
 export interface MapMetrics {
   lead_time_sec: number
+  /** Deterministic lead time plus the expected cost of every rework loop. Equal to
+   * lead_time_sec when there are no rework loops. */
+  expected_lead_time_sec: number
   total_processing_time_sec: number
   total_human_time_sec: number
   total_machine_time_sec: number
   process_cycle_efficiency_pct: number
+  /** Percent Complete & Accurate compounded along the critical path (0–100), or null if no
+   * step on the path has been assessed. */
+  rolled_pct_ca: number | null
+  ca_assessed_count: number
+  rework_loops: ReworkLoop[]
   bottleneck: Bottleneck | null
   deepest_bottleneck: DeepestBottleneck | null
   critical_step_ids: string[]

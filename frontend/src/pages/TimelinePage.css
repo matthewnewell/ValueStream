@@ -224,6 +224,11 @@
   color: var(--color-critical);
 }
 
+.tv-tag--rework {
+  background: var(--color-critical-soft);
+  color: var(--color-critical);
+}
+
 .tv-tag--delay {
   background: var(--color-wait-soft);
   color: var(--color-wait);

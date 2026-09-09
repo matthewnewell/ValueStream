@@ -308,6 +308,63 @@ def compute_metrics(
     total_machine_time = sum(machine_weight(steps_by_id[n]) for n in rep_path)
     pce = (total_processing_time / lead_time * 100.0) if lead_time > _EPS else 0.0
 
+    # Rolled %C&A — each step's Percent Complete & Accurate, compounded along the critical path
+    # (0.9 * 0.9 * 0.9 = 73%: every handoff loses a bit). Unassessed steps count as 100% so
+    # they don't drag it down; ca_assessed_count says how many were actually rated, so a "100%"
+    # on a blank map reads honestly.
+    ca_on_path = [steps_by_id[n].get("pct_complete_accurate") for n in rep_path]
+    ca_assessed_count = sum(1 for v in ca_on_path if v is not None)
+    rolled_pct_ca = None
+    if ca_assessed_count:
+        prod = 1.0
+        for v in ca_on_path:
+            prod *= (float(v) / 100.0) if v is not None else 1.0
+        rolled_pct_ca = round(prod * 100.0, 1)
+
+    # Rework loops — a kind="rework" edge runs from a detection step back to where the defect
+    # has to be fixed. It never touches CPM (it's not a "flow" edge), but its expected cost
+    # does hit lead time: each time the loop fires, everything from the origin through the
+    # detection step gets re-executed. loop_cost = earliest_finish(detection) − earliest_start
+    # (origin). rate = the edge's own rework_rate, or 1 − (origin step's %C&A). Expected extra
+    # uses the geometric series (rework can itself need rework): rate/(1−rate) × loop_cost.
+    rework_loops = []
+    total_expected_rework_sec = 0.0
+    for e in edges:
+        if e.get("kind") != "rework":
+            continue
+        detection_id, origin_id = e["source_step_id"], e["target_step_id"]
+        if detection_id not in main_component or origin_id not in main_component:
+            continue
+        es_o = cpm["earliest_start"].get(origin_id)
+        ef_d = cpm["earliest_finish"].get(detection_id)
+        if es_o is None or ef_d is None:
+            continue
+        loop_cost = max(0.0, ef_d - es_o)
+
+        rate_pct = e.get("rework_rate")
+        if rate_pct is None:
+            origin_ca = steps_by_id[origin_id].get("pct_complete_accurate")
+            rate_pct = (100.0 - float(origin_ca)) if origin_ca is not None else None
+        if rate_pct is None:
+            continue
+        rate = min(0.95, max(0.0, float(rate_pct) / 100.0))
+        expected_extra = (rate / (1.0 - rate)) * loop_cost if rate > 0 else 0.0
+        total_expected_rework_sec += expected_extra
+        rework_loops.append(
+            {
+                "edge_id": e["id"],
+                "origin_step_id": origin_id,
+                "origin_step_name": steps_by_id.get(origin_id, {}).get("name"),
+                "detection_step_id": detection_id,
+                "detection_step_name": steps_by_id.get(detection_id, {}).get("name"),
+                "rate_pct": round(rate * 100.0, 1),
+                "loop_cost_sec": loop_cost,
+                "expected_extra_sec": expected_extra,
+            }
+        )
+    rework_loops.sort(key=lambda r: -r["expected_extra_sec"])
+    expected_lead_time_sec = lead_time + total_expected_rework_sec
+
     # Theory-of-Constraints bottleneck: highest-weight step across the WHOLE map, independent
     # of critical path / component membership. A step that owns a child map competes here using
     # its rolled-up lead time — a 3-week "Design" can absolutely be the real bottleneck, and if
@@ -440,10 +497,14 @@ def compute_metrics(
 
     return {
         "lead_time_sec": lead_time,
+        "expected_lead_time_sec": expected_lead_time_sec,
         "total_processing_time_sec": total_processing_time,
         "total_human_time_sec": total_human_time,
         "total_machine_time_sec": total_machine_time,
         "process_cycle_efficiency_pct": pce,
+        "rolled_pct_ca": rolled_pct_ca,
+        "ca_assessed_count": ca_assessed_count,
+        "rework_loops": rework_loops,
         "bottleneck": bottleneck,
         "critical_step_ids": critical_step_ids,
         "critical_edge_ids": critical_edge_ids,

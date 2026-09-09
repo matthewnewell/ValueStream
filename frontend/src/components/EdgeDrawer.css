@@ -175,6 +175,22 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   font-size: 13px;
+  box-sizing: border-box;
+}
+
+.edge-drawer__rework-rate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edge-drawer__rework-rate input {
+  width: 100px;
+}
+
+.edge-drawer__rework-rate span {
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
 .edge-drawer__footer {

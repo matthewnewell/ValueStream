@@ -17,7 +17,7 @@ import VsmTimeline from '../components/VsmTimeline'
 import { formatDuration } from '../lib/duration'
 import './TimelinePage.css'
 
-type FocusType = 'slip' | 'delay' | 'bottleneck' | 'wait'
+type FocusType = 'slip' | 'rework' | 'delay' | 'bottleneck' | 'wait'
 
 interface FocusItem {
   key: string
@@ -39,14 +39,21 @@ interface FocusItem {
 
 const TAG_LABEL: Record<FocusType, string> = {
   slip: 'Slip risk',
+  rework: 'Rework risk',
   delay: 'Dominant delay',
   bottleneck: 'Bottleneck',
   wait: 'Wait',
 }
 
 // Tiebreak when two items have equal impact: protect a gated window before chasing the wait
-// it gates.
-const TYPE_ORDER: Record<FocusType, number> = { slip: 0, delay: 1, wait: 2, bottleneck: 3 }
+// it gates; a rework loop (whole-segment redo) outranks a single wait.
+const TYPE_ORDER: Record<FocusType, number> = {
+  slip: 0,
+  rework: 1,
+  delay: 2,
+  wait: 3,
+  bottleneck: 4,
+}
 
 /** Where to focus — impact-first, not "easiest first". Every item carries an `impactSec`
  * (how much it drives the delivery date); the list sorts by that. Anything with slack —
@@ -93,6 +100,24 @@ function buildFocusList(metrics: MapMetrics): { primary: FocusItem[]; minor: Foc
           : w.wait_kind === 'internal'
             ? 'You control this. Before making it faster, ask whether the step or sign-off is load-bearing at all — deleting beats optimizing.'
             : 'Categorize this wait as internal or external so you know whether you can act on it.',
+    })
+  }
+
+  for (const r of metrics.rework_loops) {
+    items.push({
+      key: `rework-${r.edge_id}`,
+      type: 'rework',
+      edgeId: r.edge_id,
+      impactSec: r.expected_extra_sec,
+      title: `${r.detection_step_name} → rework back to ${r.origin_step_name}`,
+      detail: `${r.rate_pct.toFixed(0)}% of units hit this · each one re-runs the ${formatDuration(
+        r.loop_cost_sec,
+      )} segment from ${r.origin_step_name} · ~${formatDuration(
+        r.expected_extra_sec,
+      )} of expected lead time`,
+      hint: `Catch it earlier. This loop only fires because a defect clears every check between ${r.origin_step_name} and ${r.detection_step_name} — a review or gate that stops half of them buys back ~${formatDuration(
+        r.expected_extra_sec / 2,
+      )}, usually cheaper than any downstream expedite. Front-loading quality is the highest-leverage spend on a loop like this.`,
     })
   }
 
@@ -319,9 +344,35 @@ export default function TimelinePage() {
               </div>
               <div className="tv-stat__value">{formatDuration(metrics.lead_time_sec)}</div>
               <div className="tv-stat__note">
-                {formatDuration(metrics.total_processing_time_sec)} of that is actual work
+                {metrics.expected_lead_time_sec > metrics.lead_time_sec + 1 ? (
+                  <>
+                    ~{formatDuration(metrics.expected_lead_time_sec)} once rework is expected ·{' '}
+                  </>
+                ) : null}
+                {formatDuration(metrics.total_processing_time_sec)} is actual work
               </div>
             </div>
+
+            {metrics.rolled_pct_ca != null && (
+              <div className="tv-stat">
+                <div className="tv-stat__label">
+                  Rolled %C&amp;A
+                  <InfoPopover label="Rolled percent complete and accurate">
+                    Each step's <strong>Percent Complete &amp; Accurate</strong> — how much of what
+                    it hands downstream is usable as-is — compounded along the critical path.
+                    0.9&nbsp;×&nbsp;0.9&nbsp;×&nbsp;0.9&nbsp;≈&nbsp;73%: every handoff loses a
+                    little. Low here means the real cost isn't the steps, it's the rework between
+                    them.
+                  </InfoPopover>
+                </div>
+                <div className="tv-stat__value">{metrics.rolled_pct_ca.toFixed(0)}%</div>
+                <div className="tv-stat__note">
+                  {metrics.ca_assessed_count} step{metrics.ca_assessed_count === 1 ? '' : 's'}{' '}
+                  assessed
+                </div>
+              </div>
+            )}
+
             <div className="tv-stat">
               <div className="tv-stat__label">
                 Process cycle efficiency

@@ -72,30 +72,35 @@ def _build_sample_map() -> Map:
         description="Engineering finalizes the bracket drawing and BOM.",
         pos_x=40, pos_y=220,
         human_time_sec=16 * HOUR, machine_time_sec=0, operators=1, machines=0,
+        pct_complete_accurate=80,
     )
     procure_long = Step(
         map_id=m.id, name="Procure — Long-Lead Casting",
         description="Sole-source custom aluminum casting from an external foundry.",
         pos_x=380, pos_y=60,
         human_time_sec=2 * HOUR, machine_time_sec=0, operators=1, machines=0,
+        pct_complete_accurate=96,
     )
     procure_std = Step(
         map_id=m.id, name="Procure — Standard Hardware",
         description="Off-the-shelf fasteners and bushings from a stocked distributor.",
         pos_x=380, pos_y=380,
         human_time_sec=1 * HOUR, machine_time_sec=0, operators=1, machines=0,
+        pct_complete_accurate=98,
     )
     build = Step(
         map_id=m.id, name="Build",
         description="Assemble the casting and hardware; CNC finish-machine mounting holes.",
         pos_x=720, pos_y=220,
         human_time_sec=8 * HOUR, machine_time_sec=4 * HOUR, operators=2, machines=1,
+        pct_complete_accurate=92,
     )
     ship = Step(
         map_id=m.id, name="Ship",
         description="Final inspection, pack, generate shipping docs, hand off to carrier.",
         pos_x=1040, pos_y=220,
         human_time_sec=2 * HOUR, machine_time_sec=0, operators=1, machines=0,
+        pct_complete_accurate=99,
     )
     db.session.add_all([design, procure_long, procure_std, build, ship])
     db.session.flush()
@@ -111,6 +116,10 @@ def _build_sample_map() -> Map:
              wait_time_sec=3 * DAY, label="distributor shipping", wait_kind="external"),
         Edge(map_id=m.id, source_step_id=build.id, target_step_id=ship.id,
              wait_time_sec=1 * DAY, label="QA hold", wait_kind="internal"),
+        # A design defect that clears every check until final assembly forces a re-buy of the
+        # long-lead casting — the worst kind of rework, looping back through the 3-week foundry.
+        Edge(map_id=m.id, source_step_id=build.id, target_step_id=procure_long.id,
+             kind="rework", rework_rate=12),
     ])
     return m
 

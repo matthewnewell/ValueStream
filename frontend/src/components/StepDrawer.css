@@ -329,6 +329,33 @@
   border-radius: var(--radius-sm);
   font-weight: 400;
   text-transform: none;
+  box-sizing: border-box;
+}
+
+.step-drawer__ca-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step-drawer__ca-row input {
+  width: 88px;
+}
+
+.step-drawer__ca-pct {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-transform: none;
+  font-weight: 400;
+}
+
+.step-drawer__ca-hint {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.45;
+  color: var(--color-text-faint);
 }
 
 .step-drawer__footer {

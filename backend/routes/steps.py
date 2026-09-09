@@ -10,7 +10,7 @@ bp = Blueprint("steps", __name__)
 
 _EDITABLE_FIELDS = {
     "name", "description", "pos_x", "pos_y", "human_time_sec", "machine_time_sec",
-    "operators", "machines", "notes",
+    "operators", "machines", "notes", "pct_complete_accurate",
 }
 
 
@@ -58,6 +58,8 @@ def update_step(step_id):
 
     if "name" in body and not (step.name or "").strip():
         return jsonify({"error": "name cannot be empty"}), 400
+    if step.pct_complete_accurate is not None:
+        step.pct_complete_accurate = max(0.0, min(100.0, float(step.pct_complete_accurate)))
 
     after = {f: getattr(step, f) for f in journal.STEP_FIELDS}
     journal.record_changes(
