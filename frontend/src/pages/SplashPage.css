@@ -113,10 +113,6 @@
   background: var(--color-accent-soft);
 }
 
-.splash-figure__link:hover .splash-figure__cue {
-  color: var(--color-accent);
-}
-
 .splash-figure__scroll {
   overflow-x: auto;
 }
@@ -127,23 +123,6 @@
   min-width: 34rem;
   height: auto;
   font-family: var(--font-sans);
-}
-
-.splash-figure__caption {
-  margin: 16px auto 0;
-  max-width: 34rem;
-  text-align: center;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--color-text-faint);
-}
-
-.splash-figure__cue {
-  display: block;
-  margin-top: 6px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  transition: color 0.15s ease;
 }
 
 .vs-svg__work-name {

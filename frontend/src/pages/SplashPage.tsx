@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom'
 import './SplashPage.css'
 
 // One illustrative value stream, drawn roughly to scale. `w` is px width in the SVG.
-const RAW: { kind: 'work' | 'wait'; name?: string; label?: string; dur: string; w: number }[] = [
+const RAW: { kind: 'work' | 'wait'; name?: string; dur: string; w: number }[] = [
   { kind: 'work', name: 'Design', dur: '3 days', w: 78 },
-  { kind: 'wait', label: 'review', dur: '2 days', w: 44 },
+  { kind: 'wait', dur: '2 days', w: 44 },
   { kind: 'work', name: 'Procure', dur: '2 days', w: 64 },
-  { kind: 'wait', label: 'foundry lead time', dur: '3 weeks', w: 300 },
+  { kind: 'wait', dur: '3 weeks', w: 300 },
   { kind: 'work', name: 'Build', dur: '3 days', w: 78 },
-  { kind: 'wait', label: 'QA queue', dur: '2 days', w: 44 },
+  { kind: 'wait', dur: '2 days', w: 44 },
   { kind: 'work', name: 'Ship', dur: '1 day', w: 56 },
 ]
 let _x = 18
@@ -99,7 +99,7 @@ export default function SplashPage() {
                       y="69"
                       textAnchor="middle"
                     >
-                      {seg.w > 130 ? `${seg.dur} · ${seg.label}` : seg.dur}
+                      {seg.dur}
                     </text>
                   </g>
                 ),
@@ -120,11 +120,6 @@ export default function SplashPage() {
               </text>
             </svg>
           </div>
-          <figcaption className="splash-figure__caption">
-            The foundry wait dwarfs every step of real work. Find that, and you've found your
-            constraint.
-            <span className="splash-figure__cue">Open the sample map →</span>
-          </figcaption>
           </Link>
         </figure>
 
