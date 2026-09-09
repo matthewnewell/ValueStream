@@ -92,11 +92,29 @@
 
 .splash-figure {
   margin: 0;
-  padding: 26px 26px 20px;
+  padding: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* The whole figure is a shortcut into the live sample map. */
+.splash-figure__link {
+  display: block;
+  padding: 26px 26px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+
+.splash-figure__link:hover {
+  background: var(--color-accent-soft);
+}
+
+.splash-figure__link:hover .splash-figure__cue {
+  color: var(--color-accent);
 }
 
 .splash-figure__scroll {
@@ -118,6 +136,14 @@
   font-size: 0.8rem;
   line-height: 1.5;
   color: var(--color-text-faint);
+}
+
+.splash-figure__cue {
+  display: block;
+  margin-top: 6px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
 }
 
 .vs-svg__work-name {

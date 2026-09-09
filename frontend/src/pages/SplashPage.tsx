@@ -44,6 +44,7 @@ export default function SplashPage() {
         </header>
 
         <figure className="splash-figure">
+          <Link className="splash-figure__link" to="/sample">
           <div className="splash-figure__scroll">
             <svg viewBox="0 0 712 128" role="img" aria-labelledby="vs-timeline-title">
               <title id="vs-timeline-title">
@@ -122,7 +123,9 @@ export default function SplashPage() {
           <figcaption className="splash-figure__caption">
             The foundry wait dwarfs every step of real work. Find that, and you've found your
             constraint.
+            <span className="splash-figure__cue">Open the sample map →</span>
           </figcaption>
+          </Link>
         </figure>
 
         <div className="splash-grid">
