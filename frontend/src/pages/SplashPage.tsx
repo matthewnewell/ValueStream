@@ -30,8 +30,9 @@ export default function SplashPage() {
         <header className="splash-hero">
           <h1 className="splash-hero__title">Identify and eliminate bottlenecks</h1>
           <p className="splash-hero__sub">
-            Value Stream draws your process to scale — active work versus delay — and calculates
-            the critical path to pinpoint the true bottleneck.
+            See the wait, not just the work. Value Stream exposes the friction between your
+            process steps and pinpoints the one delay on the critical path — the single place
+            where cutting time actually pulls your delivery date in.
           </p>
           <div className="splash-hero__actions">
             <Link className="splash-btn splash-btn--primary" to="/sample">
