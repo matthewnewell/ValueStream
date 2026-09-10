@@ -57,6 +57,8 @@ _MIGRATIONS = [
     # the escape rate on a kind="rework" edge (null → derived from the origin step's %C&A).
     ("step", "pct_complete_accurate", "ALTER TABLE step ADD COLUMN pct_complete_accurate FLOAT"),
     ("edge", "rework_rate", "ALTER TABLE edge ADD COLUMN rework_rate FLOAT"),
+    # The owning team/function shown on a process box (VSM convention).
+    ("step", "owning_team", "ALTER TABLE step ADD COLUMN owning_team VARCHAR(120)"),
 ]
 
 

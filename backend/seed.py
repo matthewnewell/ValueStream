@@ -31,6 +31,15 @@ def _delete_map_tree(m: Map):
             child = Map.query.get(step.child_map_id)
             if child is not None:
                 _delete_map_tree(child)
+    # cloned_from_map_id / published_from_map_id are ON DELETE SET NULL in the model, but the
+    # ALTER TABLE that added them can't express that in SQLite — clear inbound refs by hand so
+    # a template that's been cloned is still deletable (e.g. retiring the old scaffolds below).
+    Map.query.filter_by(cloned_from_map_id=m.id).update(
+        {"cloned_from_map_id": None}, synchronize_session=False
+    )
+    Map.query.filter_by(published_from_map_id=m.id).update(
+        {"published_from_map_id": None}, synchronize_session=False
+    )
     db.session.delete(m)
 
 
@@ -70,6 +79,7 @@ def _build_sample_map() -> Map:
     design = Step(
         map_id=m.id, name="Design",
         description="Engineering finalizes the bracket drawing and BOM.",
+        owning_team="Design Engineering",
         pos_x=40, pos_y=220,
         human_time_sec=16 * HOUR, machine_time_sec=0, operators=1, machines=0,
         pct_complete_accurate=80,
@@ -77,6 +87,7 @@ def _build_sample_map() -> Map:
     procure_long = Step(
         map_id=m.id, name="Procure — Long-Lead Casting",
         description="Sole-source custom aluminum casting from an external foundry.",
+        owning_team="Subcontracts",
         pos_x=380, pos_y=60,
         human_time_sec=2 * HOUR, machine_time_sec=0, operators=1, machines=0,
         pct_complete_accurate=96,
@@ -84,6 +95,7 @@ def _build_sample_map() -> Map:
     procure_std = Step(
         map_id=m.id, name="Procure — Standard Hardware",
         description="Off-the-shelf fasteners and bushings from a stocked distributor.",
+        owning_team="Procurement",
         pos_x=380, pos_y=380,
         human_time_sec=1 * HOUR, machine_time_sec=0, operators=1, machines=0,
         pct_complete_accurate=98,
@@ -91,6 +103,7 @@ def _build_sample_map() -> Map:
     build = Step(
         map_id=m.id, name="Build",
         description="Assemble the casting and hardware; CNC finish-machine mounting holes.",
+        owning_team="Manufacturing",
         pos_x=720, pos_y=220,
         human_time_sec=8 * HOUR, machine_time_sec=4 * HOUR, operators=2, machines=1,
         pct_complete_accurate=92,
@@ -98,6 +111,7 @@ def _build_sample_map() -> Map:
     ship = Step(
         map_id=m.id, name="Ship",
         description="Final inspection, pack, generate shipping docs, hand off to carrier.",
+        owning_team="Shipping & Receiving",
         pos_x=1040, pos_y=220,
         human_time_sec=2 * HOUR, machine_time_sec=0, operators=1, machines=0,
         pct_complete_accurate=99,
@@ -124,199 +138,286 @@ def _build_sample_map() -> Map:
     return m
 
 
-# ── Map library: ISO/IEC/IEEE 15288 starter templates ──────────────────────────────────────
+# ── Map library: the ISO/IEC/IEEE 15288 program value-stream template ──────────────────────
 #
-# Three top-level maps aligned to the standard's process families the user wants to model:
-# Agreement (6.1), Technical Management (6.3), and Technical (6.4) — Organizational
-# Project-Enabling (6.2) deliberately left out. All processing/wait times are left at 0: these
-# are structural scaffolds to clone and fill in per project, not fabricated example data (that
-# would misrepresent what real durations look like, the same reason the demo map above uses
-# durations, but a *template* shouldn't pretend to know your project's numbers in advance).
+# One top-level template: a hardware program's value stream, using 15288:2015 process names
+# (Clause 6.1-6.4) arranged the way the program actually flows rather than as four parallel
+# process groups. It supersedes the three earlier single-family scaffolds (Agreement /
+# Technical Management / Technical), which seed_templates_if_missing() now retires from any
+# older DB that still has them.
 #
-# Technical Processes is the one family that's genuinely linear in the standard's own clause
-# order, so it's seeded as a straight chain. Technical Management Processes runs continuously
-# across the whole project rather than in any sequence — chaining it would misrepresent it, so
-# it's seeded as parallel branches between a start and closeout anchor instead. Agreement is
-# really two concurrent buyer/supplier roles, not a sequence either; it's seeded as a simple
-# two-step pairing as a starting scaffold, with that simplification called out in its own
-# description.
+# Design choices, all called out in the map's own description:
+#   - Procurement is the program acting as *acquirer*, so both procurement tracks are the
+#     Acquisition process (6.1.1); the single Supply process (6.1.2) box at the front is the
+#     company supplying its customer. "Prepare / Solicit / Establish agreement / Monitor /
+#     Accept" are Acquisition-process *activities*, not separate processes.
+#   - Long-lead procurement branches off Architecture Definition and is committed before the
+#     design is complete; standard procurement is gated on the post-CDR drawing & BOM release.
+#     A kind="rework" connector from Design Definition back to the long-lead award models the
+#     design maturing after the commitment and forcing a re-buy.
+#   - Continuous processes are not drawn: all of Organizational Project-Enabling (6.2) and
+#     6.3.2-6.3.8 of Technical Management are level-of-effort with no unit flowing through
+#     them. Project Planning (6.3.1) is kept because it gates work start. Their touchpoints
+#     show up as wait labels (acceptance review, incoming inspection queue).
+#   - Wait times are representative weeks so the "procurement dominates lead time" story is
+#     visible on clone; processing time is on Design Definition only (the phase that must
+#     "mature" for the rework loop to mean anything) and 0 elsewhere for the PM to fill in.
+#   - Every non-spine branch can be deleted whole without disconnecting the flow (the spine
+#     keeps direct Architecture->Design and Design->Implementation edges).
 
-_15288_AGREEMENT = "Agreement Processes"
-_15288_TECH_MGMT = "Technical Management Processes"
-_15288_TECHNICAL = "Technical Processes"
+_15288_PROGRAM = "Program Value Stream"
+_PROGRAM_TEMPLATE_NAME = "Template: Program Value Stream (ISO/IEC/IEEE 15288)"
+
+_RETIRED_TEMPLATE_NAMES = (
+    "Template: Agreement Processes (ISO/IEC/IEEE 15288)",
+    "Template: Technical Management Processes (ISO/IEC/IEEE 15288)",
+    "Template: Technical Processes (ISO/IEC/IEEE 15288)",
+)
+
+_PROGRAM_TEMPLATE_DESCRIPTION = (
+    "A hardware program's value stream, in ISO/IEC/IEEE 15288:2015 process names "
+    "(Clause 6.1-6.4), arranged as the program actually flows. Clone it and adjust.\n\n"
+    "Procurement is detailed because its wait usually dominates lead time. When the program "
+    "buys parts it is the acquirer, so both procurement tracks are the Acquisition process "
+    "(6.1.1); the Supply process (6.1.2) box at the front is the company supplying its "
+    "customer. The Prepare / Solicit / Establish agreement / Monitor / Accept boxes are "
+    "Acquisition-process activities. Long-lead items branch off Architecture Definition and "
+    "are committed before design is complete; standard build-to-print procurement is gated on "
+    "the post-CDR drawing & BOM release. The rework connector from Design Definition back to "
+    "the long-lead award is the design maturing after the commitment and forcing a re-buy.\n\n"
+    "Not drawn: Organizational Project-Enabling (6.2) and Technical Management 6.3.2-6.3.8 are "
+    "continuous level-of-effort work with no unit flowing through them; their touchpoints show "
+    "up here as wait labels. Project Planning (6.3.1) is kept because it gates work start.\n\n"
+    "Wait times are representative weeks; processing time is pre-filled only on detailed "
+    "design and the procurement activities. Milestone names on connectors (SRR, PDR, CDR) are "
+    "convention, not 15288. Every branch can be deleted whole without disconnecting the flow."
+)
+
+WEEK = 7 * DAY
 
 
-def _seed_agreement_template():
+def _seed_program_value_stream_template():
     m = Map(
-        name="Template: Agreement Processes (ISO/IEC/IEEE 15288)",
-        description=(
-            "Starter value stream for Agreement Processes (Clause 6.1) — Acquisition and "
-            "Supply. These are typically concurrent buyer/supplier roles rather than a strict "
-            "sequence; treat this as a simplified starting scaffold. Clone it, then adjust the "
-            "shape and fill in real durations for your agreement."
-        ),
+        name=_PROGRAM_TEMPLATE_NAME,
+        description=_PROGRAM_TEMPLATE_DESCRIPTION,
         lifecycle="featured",
         is_template=True,
-        template_category=_15288_AGREEMENT,
+        template_category=_15288_PROGRAM,
     )
     db.session.add(m)
     db.session.flush()
 
-    acquisition = Step(
-        map_id=m.id, name="Acquisition Process (Clause 6.1.1)",
-        description="Obtain a product or service from a supplier per an agreement.",
-        pos_x=40, pos_y=200,
-    )
-    supply = Step(
-        map_id=m.id, name="Supply Process (Clause 6.1.2)",
-        description="Provide a product or service to an acquirer per an agreement.",
-        pos_x=380, pos_y=200,
-    )
-    db.session.add_all([acquisition, supply])
-    db.session.flush()
-
-    db.session.add(Edge(
-        map_id=m.id, source_step_id=acquisition.id, target_step_id=supply.id,
-        wait_time_sec=0, label="agreement executed",
-    ))
-
-
-def _seed_technical_management_template():
-    m = Map(
-        name="Template: Technical Management Processes (ISO/IEC/IEEE 15288)",
-        description=(
-            "Starter value stream for Technical Management Processes (Clause 6.3) — Project "
-            "Planning through Quality Assurance. These run continuously across the life of "
-            "the project rather than in sequence, so they're modeled as parallel branches "
-            "between kickoff and closeout instead of a false chain. Clone it, then adjust to "
-            "fit how your project actually runs them."
-        ),
-        lifecycle="featured",
-        is_template=True,
-        template_category=_15288_TECH_MGMT,
-    )
-    db.session.add(m)
-    db.session.flush()
-
-    start = Step(
-        map_id=m.id, name="Project Start",
-        description="Anchor step — kickoff of the technical management effort.",
-        pos_x=40, pos_y=400,
-    )
-    closeout = Step(
-        map_id=m.id, name="Project Closeout",
-        description="Anchor step — technical management effort wraps up with the project.",
-        pos_x=760, pos_y=400,
-    )
-    db.session.add_all([start, closeout])
-    db.session.flush()
-
-    process_defs = [
-        ("Project Planning Process (Clause 6.3.1)",
-         "Produce and maintain the plans that coordinate the technical effort."),
-        ("Project Assessment and Control Process (Clause 6.3.2)",
-         "Track progress against the plan and act on deviations."),
-        ("Decision Management Process (Clause 6.3.3)",
-         "Make and record key technical decisions using a consistent, defensible process."),
-        ("Risk Management Process (Clause 6.3.4)",
-         "Identify, analyze, and treat risks (and opportunities) across the project."),
-        ("Configuration Management Process (Clause 6.3.5)",
-         "Establish and maintain the integrity of the system's configuration items."),
-        ("Information Management Process (Clause 6.3.6)",
-         "Manage the project's information so the right people have the right data."),
-        ("Measurement Process (Clause 6.3.7)",
-         "Collect and analyze data to support effective management decisions."),
-        ("Quality Assurance Process (Clause 6.3.8)",
-         "Provide confidence that products and processes meet requirements and plans."),
-    ]
-    ys = [20, 130, 240, 350, 460, 570, 680, 790]
-    steps = []
-    for (name, blurb), y in zip(process_defs, ys):
-        s = Step(map_id=m.id, name=name, description=blurb, pos_x=400, pos_y=y)
+    def S(name, team, x, y, desc):
+        s = Step(map_id=m.id, name=name, owning_team=team, description=desc, pos_x=x, pos_y=y)
         db.session.add(s)
-        steps.append(s)
-    db.session.flush()
+        return s
 
-    for s in steps:
-        db.session.add(Edge(
-            map_id=m.id, source_step_id=start.id, target_step_id=s.id,
-            wait_time_sec=0, label="concurrent, project-length",
-        ))
-        db.session.add(Edge(
-            map_id=m.id, source_step_id=s.id, target_step_id=closeout.id, wait_time_sec=0,
-        ))
+    spine_y = 380
+    dx = 300
 
-
-def _seed_technical_processes_template():
-    m = Map(
-        name="Template: Technical Processes (ISO/IEC/IEEE 15288)",
-        description=(
-            "Starter value stream for Technical Processes (Clause 6.4) — Business/Mission "
-            "Analysis through Disposal, in clause order. This family is the most naturally "
-            "linear of the three — a reasonable default chain to clone and customize."
-        ),
-        lifecycle="featured",
-        is_template=True,
-        template_category=_15288_TECHNICAL,
+    # ── Spine: the value-adding flow, left to right ────────────────────────────────────────
+    supply = S(
+        "Supply process (Clause 6.1.2)", "Business Development / Contracts",
+        40, spine_y,
+        "Prepare the proposal, negotiate, and execute the agreement to supply the customer - "
+        "the company as supplier to its acquirer.",
     )
-    db.session.add(m)
+    planning = S(
+        "Project Planning process (Clause 6.3.1)", "Program Management Office",
+        40 + dx, spine_y,
+        "Stand up the program: WBS, IMS, budgets, staffing plan, SEMP. The one continuous "
+        "(6.3) process kept on the map because it gates work start.",
+    )
+    bma = S(
+        "Business or Mission Analysis process (Clause 6.4.1)", "Systems Engineering",
+        40 + 2 * dx, spine_y,
+        "Define the problem space and the business/mission need the system must address.",
+    )
+    stkh = S(
+        "Stakeholder Needs and Requirements Definition process (Clause 6.4.2)",
+        "Systems Engineering", 40 + 3 * dx, spine_y,
+        "Capture what stakeholders need the system to do, in their terms.",
+    )
+    sysreq = S(
+        "System Requirements Definition process (Clause 6.4.3)", "Systems Engineering",
+        40 + 4 * dx, spine_y,
+        "Translate stakeholder needs into verifiable system requirements.",
+    )
+    arch = S(
+        "Architecture Definition process (Clause 6.4.4)", "Systems Engineering / Chief Engineer",
+        40 + 5 * dx, spine_y,
+        "Establish the system architecture - elements, interfaces, allocations. The "
+        "preliminary BOM and long-lead item list come out of here.",
+    )
+    design = S(
+        "Design Definition process (Clause 6.4.5)", "Mechanical / Design Engineering",
+        40 + 6 * dx, spine_y,
+        "Detailed design of each system element; release the drawing & BOM package at CDR. "
+        "This is the design-maturity gate for standard procurement.",
+    )
+    impl = S(
+        "Implementation process (Clause 6.4.7)", "Manufacturing",
+        40 + 7 * dx, spine_y,
+        "Fabricate and build the make items per the released design.",
+    )
+    integ = S(
+        "Integration process (Clause 6.4.8)", "Assembly & Integration",
+        40 + 8 * dx, spine_y,
+        "Assemble system elements - make items plus procured parts - into the system.",
+    )
+    verif = S(
+        "Verification process (Clause 6.4.9)", "Test & Evaluation",
+        40 + 9 * dx, spine_y,
+        "Confirm the system meets its specified requirements.",
+    )
+    trans = S(
+        "Transition process (Clause 6.4.10)", "Program Management / Field Operations",
+        40 + 10 * dx, spine_y,
+        "Deliver and install the verified system in its operational environment.",
+    )
+    valid = S(
+        "Validation process (Clause 6.4.11)", "Systems Engineering / Customer",
+        40 + 11 * dx, spine_y,
+        "Confirm the system meets the stakeholder need in operation.",
+    )
+    oper = S(
+        "Operation process (Clause 6.4.12)", "Customer / Sustainment",
+        40 + 12 * dx, spine_y,
+        "Use the system to deliver its services. Usually outside the build program - prune "
+        "if out of scope.",
+    )
+    maint = S(
+        "Maintenance process (Clause 6.4.13)", "Sustainment",
+        40 + 13 * dx, spine_y,
+        "Sustain system capability over its operational life. Prune if out of scope.",
+    )
+    disp = S(
+        "Disposal process (Clause 6.4.14)", "Sustainment / EH&S",
+        40 + 14 * dx, spine_y,
+        "Retire and dispose of the system at end of life. Prune if out of scope.",
+    )
+
+    # ── Parallel analysis branch (prunable) ───────────────────────────────────────────────
+    sysan = S(
+        "System Analysis process (Clause 6.4.6)", "Engineering Analysis",
+        40 + 5 * dx + dx // 2, spine_y - 230,
+        "Trade studies and performance/stress/thermal analysis feeding architecture and "
+        "design decisions. Prune if analysis is folded into Design Definition.",
+    )
+
+    # ── Long-lead procurement path (committed before design is complete) ───────────────────
+    ll_y = spine_y - 210
+    ll_prep = S(
+        "Acquisition process - Prepare (Clause 6.1.1)", "Supply Chain / Procurement Engineering",
+        40 + 6 * dx, ll_y,
+        "Make/buy decisions, long-lead item list, and source strategy for the long-lead "
+        "items - the Acquisition-process 'prepare for the acquisition' activity.",
+    )
+    ll_award = S(
+        "Acquisition process - Select supplier & establish agreement, long-lead (Clause 6.1.1)",
+        "Subcontracts", 40 + 7 * dx, ll_y,
+        "Source-select and place the long-lead order ahead of CDR under an advance "
+        "procurement authorization - committed before the design is complete.",
+    )
+    ll_accept = S(
+        "Acquisition process - Monitor & accept, long-lead (Clause 6.1.1)", "Supplier Quality",
+        40 + 9 * dx, ll_y,
+        "Expedite and monitor the supplier through the lead time, then source / receiving "
+        "inspection on delivery.",
+    )
+
+    # ── Standard build-to-print procurement path (gated on drawing release) ────────────────
+    std_y = spine_y + 210
+    std_solicit = S(
+        "Acquisition process - Solicit & select supplier, build-to-print (Clause 6.1.1)",
+        "Procurement", 40 + 7 * dx, std_y,
+        "RFQ the released drawings/BOM, evaluate, and select suppliers for the build-to-print "
+        "parts. Gated on the post-CDR drawing & BOM release.",
+    )
+    std_award = S(
+        "Acquisition process - Establish agreement, PO / subcontract (Clause 6.1.1)",
+        "Subcontracts", 40 + 8 * dx, std_y,
+        "Place purchase orders / subcontracts against the selected suppliers.",
+    )
+    std_monitor = S(
+        "Acquisition process - Monitor the agreement (Clause 6.1.1)",
+        "Procurement / Program Management", 40 + 9 * dx, std_y,
+        "Track supplier progress and expedite through the manufacturing lead time.",
+    )
+    std_accept = S(
+        "Acquisition process - Accept, receiving inspection (Clause 6.1.1)", "Receiving Inspection",
+        40 + 10 * dx, std_y,
+        "Receiving inspection and acceptance of the delivered parts.",
+    )
+
+    # Representative processing time on the phases this template is built to illustrate:
+    # detailed design, and the procurement (Acquisition) activities that carry real buyer /
+    # subcontracts labour spread across the calendar lead time. The pure-SE and manufacturing
+    # spine steps are left at 0 for the PM to fill in per program.
+    design.human_time_sec = 12 * WEEK
+    ll_prep.human_time_sec = 2 * WEEK
+    ll_award.human_time_sec = 3 * WEEK
+    ll_accept.human_time_sec = 2 * WEEK
+    std_solicit.human_time_sec = 2 * WEEK
+    std_award.human_time_sec = 1 * WEEK
+    std_monitor.human_time_sec = 1 * WEEK
+    std_accept.human_time_sec = 1 * WEEK
+
     db.session.flush()
 
-    step_defs = [
-        ("Business or Mission Analysis Process (Clause 6.4.1)",
-         "Define the problem space and business/mission need this system must address."),
-        ("Stakeholder Needs & Requirements Definition Process (Clause 6.4.2)",
-         "Capture what stakeholders need the system to do, in their language."),
-        ("System Requirements Definition Process (Clause 6.4.3)",
-         "Translate stakeholder needs into verifiable system-level requirements."),
-        ("Architecture Definition Process (Clause 6.4.4)",
-         "Establish the system's structure — subsystems, interfaces, and how they fit together."),
-        ("Design Definition Process (Clause 6.4.5)",
-         "Develop the detailed design sufficient to build each system element."),
-        ("System Analysis Process (Clause 6.4.6)",
-         "Run trade studies and analyses to inform requirements, architecture, and design decisions."),
-        ("Implementation Process (Clause 6.4.7)",
-         "Fabricate, code, or otherwise realize a system element per its design."),
-        ("Integration Process (Clause 6.4.8)",
-         "Assemble system elements into the aggregates that make up the system."),
-        ("Verification Process (Clause 6.4.9)",
-         "Confirm the system was built right — it meets its specified requirements."),
-        ("Transition Process (Clause 6.4.10)",
-         "Move the verified system into its operational environment."),
-        ("Validation Process (Clause 6.4.11)",
-         "Confirm the system does the right job — it meets the stakeholder need."),
-        ("Operation Process (Clause 6.4.12)",
-         "Use the system to deliver its intended services in the operational environment."),
-        ("Maintenance Process (Clause 6.4.13)",
-         "Sustain the system's capability over its operational life."),
-        ("Disposal Process (Clause 6.4.14)",
-         "Retire the system and dispose of it at end of life."),
-    ]
-    steps = []
-    for i, (name, blurb) in enumerate(step_defs):
-        s = Step(map_id=m.id, name=name, description=blurb, pos_x=40 + i * 300, pos_y=200)
-        db.session.add(s)
-        steps.append(s)
-    db.session.flush()
+    def E(a, b, wait_sec=0, label=None, wait_kind=None, kind="flow", rework_rate=None):
+        db.session.add(Edge(
+            map_id=m.id, source_step_id=a.id, target_step_id=b.id,
+            wait_time_sec=wait_sec, label=label, wait_kind=wait_kind,
+            kind=kind, rework_rate=rework_rate,
+        ))
 
-    for a, b in zip(steps, steps[1:]):
-        db.session.add(Edge(map_id=m.id, source_step_id=a.id, target_step_id=b.id, wait_time_sec=0))
+    # Spine
+    E(supply, planning, 1 * WEEK, "contract award", "internal")
+    E(planning, bma, 2 * WEEK, "IMS baseline / authorization to proceed", "internal")
+    E(bma, stkh, 0)
+    E(stkh, sysreq, 1 * WEEK, "SRR", "internal")
+    E(sysreq, arch, 1 * WEEK, "SFR", "internal")
+    E(arch, design, 2 * WEEK, "PDR", "internal")
+    E(design, impl, 3 * WEEK, "CDR + released drawing & BOM package", "internal")
+    E(impl, integ, 1 * WEEK, "make parts to assembly", "internal")
+    E(integ, verif, 1 * WEEK, "integration complete", "internal")
+    E(verif, trans, 2 * WEEK, "acceptance review", "internal")
+    E(trans, valid, 2 * WEEK, "site installation", "external")
+    E(valid, oper, 4 * WEEK, "operational acceptance", "external")
+    E(oper, maint, 0)
+    E(maint, disp, 0)
+
+    # Analysis branch - arch->design direct edge above keeps the spine intact when pruned
+    E(arch, sysan, 0)
+    E(sysan, design, 1 * WEEK, "analysis cycle", "internal")
+
+    # Long-lead procurement
+    E(arch, ll_prep, 1 * WEEK, "long-lead item list", "internal")
+    E(ll_prep, ll_award, 2 * WEEK, "advance procurement authorization", "internal")
+    E(ll_award, ll_accept, 36 * WEEK, "long-lead manufacturing lead time", "external")
+    E(ll_accept, integ, 1 * WEEK, "source + receiving inspection", "internal")
+    # Design matures after the long-lead commitment -> spec change forces a re-buy.
+    E(design, ll_award, kind="rework", rework_rate=15)
+
+    # Standard procurement
+    E(design, std_solicit, 2 * WEEK, "drawing & BOM release (post-CDR)", "internal")
+    E(std_solicit, std_award, 3 * WEEK, "RFQ / quote turnaround", "external")
+    E(std_award, std_monitor, 1 * WEEK, "PO approval routing", "internal")
+    E(std_monitor, std_accept, 12 * WEEK, "supplier manufacturing + delivery lead time", "external")
+    E(std_accept, impl, 1 * WEEK, "incoming inspection queue", "internal")
 
 
 def seed_templates_if_missing():
-    """Additive and idempotent, unlike seed_if_empty above: runs every startup, checking each
-    template by name so re-running never duplicates one, and adding any that are new (e.g.
-    after an upgrade) without touching a DB that already has real project maps in it."""
-    existing = {name for (name,) in db.session.query(Map.name).filter(Map.is_template.is_(True)).all()}
-    builders = {
-        "Template: Agreement Processes (ISO/IEC/IEEE 15288)": _seed_agreement_template,
-        "Template: Technical Management Processes (ISO/IEC/IEEE 15288)": _seed_technical_management_template,
-        "Template: Technical Processes (ISO/IEC/IEEE 15288)": _seed_technical_processes_template,
-    }
-    for name, builder in builders.items():
-        if name in existing:
-            continue
-        builder()
+    """Idempotent startup: ensure the one program value-stream template exists, and retire the
+    three superseded single-family scaffolds if an older DB still carries them. Keyed by name,
+    so re-running never duplicates and never touches real project maps."""
+    for name in _RETIRED_TEMPLATE_NAMES:
+        stale = Map.query.filter_by(name=name).first()
+        if stale is not None:
+            _delete_map_tree(stale)
+    if not Map.query.filter_by(name=_PROGRAM_TEMPLATE_NAME).first():
+        _seed_program_value_stream_template()
     db.session.commit()
 
 

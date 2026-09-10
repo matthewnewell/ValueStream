@@ -19,6 +19,7 @@ interface StepDrawerProps {
 interface FormState {
   name: string
   description: string
+  owning_team: string
   human_time_sec: number
   machine_time_sec: number
   operators: number
@@ -30,6 +31,7 @@ function toForm(step: Step): FormState {
   return {
     name: step.name,
     description: step.description ?? '',
+    owning_team: step.owning_team ?? '',
     human_time_sec: step.human_time_sec,
     machine_time_sec: step.machine_time_sec,
     operators: step.operators,
@@ -78,6 +80,7 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         data: {
           name: form.name.trim() || step.name,
           description: form.description || null,
+          owning_team: form.owning_team.trim() || null,
           human_time_sec: form.human_time_sec,
           machine_time_sec: form.machine_time_sec,
           operators: form.operators,
@@ -140,6 +143,16 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
         )}
 
         <dl className="step-drawer__facts">
+          <div className="step-drawer__fact">
+            <dt>Owned by</dt>
+            <dd>
+              {step.owning_team ? (
+                step.owning_team
+              ) : (
+                <span className="step-drawer__fact-sub">unassigned</span>
+              )}
+            </dd>
+          </div>
           {hasChildMap ? (
             <>
               <div className="step-drawer__fact">
@@ -245,6 +258,19 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={2}
+        />
+      </div>
+
+      <div className="step-drawer__field">
+        <label className="step-drawer__field-label" htmlFor="step-drawer-owner">
+          Owning team
+        </label>
+        <input
+          id="step-drawer-owner"
+          className="step-drawer__owner-input"
+          placeholder="e.g. Systems Engineering"
+          value={form.owning_team}
+          onChange={(e) => setForm((f) => ({ ...f, owning_team: e.target.value }))}
         />
       </div>
 

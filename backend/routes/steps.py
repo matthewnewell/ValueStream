@@ -9,8 +9,8 @@ from .guards import writable_or_403
 bp = Blueprint("steps", __name__)
 
 _EDITABLE_FIELDS = {
-    "name", "description", "pos_x", "pos_y", "human_time_sec", "machine_time_sec",
-    "operators", "machines", "notes", "pct_complete_accurate",
+    "name", "description", "owning_team", "pos_x", "pos_y", "human_time_sec",
+    "machine_time_sec", "operators", "machines", "notes", "pct_complete_accurate",
 }
 
 
@@ -28,6 +28,7 @@ def create_step(map_id):
         map_id=map_id,
         name=name,
         description=body.get("description"),
+        owning_team=body.get("owning_team"),
         pos_x=body.get("pos_x", 0.0),
         pos_y=body.get("pos_y", 0.0),
         human_time_sec=body.get("human_time_sec", 0.0),

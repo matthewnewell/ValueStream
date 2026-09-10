@@ -99,9 +99,10 @@ def _build_context_lines(m: Map, metrics: dict) -> list[str]:
     lines.append("\nSteps:")
     for s in m.steps:
         sm = metrics["step_metrics"].get(s.id, {})
+        owner = f" [owner: {s.owning_team}]" if s.owning_team else ""
         if sm.get("has_child_map"):
             lines.append(
-                f"  - {s.name}: expanded into its own {sm.get('child_step_count')}-step "
+                f"  - {s.name}{owner}: expanded into its own {sm.get('child_step_count')}-step "
                 f"sub-process — rolled-up total {sm.get('effective_processing_sec', 0):.0f}s "
                 f"(human {sm.get('effective_human_sec', 0):.0f}s, "
                 f"machine {sm.get('effective_machine_sec', 0):.0f}s, "
@@ -110,7 +111,7 @@ def _build_context_lines(m: Map, metrics: dict) -> list[str]:
             )
         else:
             lines.append(
-                f"  - {s.name}: human={s.human_time_sec:.0f}s, machine={s.machine_time_sec:.0f}s"
+                f"  - {s.name}{owner}: human={s.human_time_sec:.0f}s, machine={s.machine_time_sec:.0f}s"
                 + (f" — {s.description}" if s.description else "")
             )
 

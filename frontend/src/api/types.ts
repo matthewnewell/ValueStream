@@ -65,6 +65,8 @@ export interface Step {
   map_id: string
   name: string
   description: string | null
+  /** Team/function that owns this process step (VSM boxes name their owner). null = unassigned. */
+  owning_team: string | null
   pos_x: number
   pos_y: number
   human_time_sec: number

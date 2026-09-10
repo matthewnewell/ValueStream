@@ -146,6 +146,10 @@ class Step(db.Model):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)  # AI context
 
+    # The team/function that owns this process step (VSM boxes name their owner). Free text,
+    # nullable — the operator fills it in; the engine never reads it.
+    owning_team = db.Column(db.String(120), nullable=True)
+
     pos_x = db.Column(db.Float, default=0.0, nullable=False)
     pos_y = db.Column(db.Float, default=0.0, nullable=False)
 
@@ -179,6 +183,7 @@ class Step(db.Model):
             "map_id": self.map_id,
             "name": self.name,
             "description": self.description,
+            "owning_team": self.owning_team,
             "pos_x": self.pos_x,
             "pos_y": self.pos_y,
             "human_time_sec": self.human_time_sec,

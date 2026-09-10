@@ -13,6 +13,7 @@ from models import MapEvent
 # field name -> label shown in the feed
 STEP_FIELDS = {
     "name": "name",
+    "owning_team": "owning team",
     "human_time_sec": "human time",
     "machine_time_sec": "machine time",
     "operators": "operators",

@@ -216,6 +216,17 @@ def delete_map(map_id):
     # map (a nested sub-process) is deleted too, but that child map itself is not — it becomes
     # ownerless and resurfaces in the top-level map list rather than being silently destroyed.
     # A deep, no-warning cascade felt like the wrong default for a delete this easy to trigger.
+    #
+    # The models declare cloned_from_map_id / published_from_map_id as ON DELETE SET NULL, but
+    # those columns were added by an ALTER TABLE that can't carry the FK action in SQLite, so
+    # clear inbound references by hand first (a library map that's been cloned must still be
+    # deletable — "blow away the old templates" is a real workflow).
+    Map.query.filter_by(cloned_from_map_id=map_id).update(
+        {"cloned_from_map_id": None}, synchronize_session=False
+    )
+    Map.query.filter_by(published_from_map_id=map_id).update(
+        {"published_from_map_id": None}, synchronize_session=False
+    )
     db.session.delete(m)
     db.session.commit()
     return "", 204
@@ -245,6 +256,7 @@ def _deep_copy_map(src: Map, *, name: str, lifecycle: str = "working", template_
             map_id=new_map.id,
             name=s.name,
             description=s.description,
+            owning_team=s.owning_team,
             pos_x=s.pos_x,
             pos_y=s.pos_y,
             human_time_sec=s.human_time_sec,
@@ -252,6 +264,7 @@ def _deep_copy_map(src: Map, *, name: str, lifecycle: str = "working", template_
             operators=s.operators,
             machines=s.machines,
             notes=s.notes,
+            pct_complete_accurate=s.pct_complete_accurate,
             # child_map_id intentionally NOT copied: "one owning step per child map" is the
             # invariant that lets metrics rollup stay simple, and pointing two steps at the
             # same child map would break it. A copied step starts as a plain leaf; the
@@ -271,6 +284,7 @@ def _deep_copy_map(src: Map, *, name: str, lifecycle: str = "working", template_
                 label=e.label,
                 kind=e.kind,
                 wait_kind=e.wait_kind,
+                rework_rate=e.rework_rate,
             )
         )
 
@@ -398,6 +412,7 @@ def import_map():
             map_id=new_map.id,
             name=s.get("name", "Untitled step"),
             description=s.get("description"),
+            owning_team=s.get("owning_team"),
             pos_x=s.get("pos_x", 0.0),
             pos_y=s.get("pos_y", 0.0),
             human_time_sec=s.get("human_time_sec", 0.0),
@@ -405,6 +420,7 @@ def import_map():
             operators=s.get("operators", 1),
             machines=s.get("machines", 0),
             notes=s.get("notes"),
+            pct_complete_accurate=s.get("pct_complete_accurate"),
         )
         db.session.add(new_step)
         db.session.flush()
@@ -422,6 +438,7 @@ def import_map():
                 label=e.get("label"),
                 kind=e.get("kind", "flow"),
                 wait_kind=e.get("wait_kind"),
+                rework_rate=e.get("rework_rate"),
             )
         )
 

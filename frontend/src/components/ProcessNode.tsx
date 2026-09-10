@@ -56,6 +56,8 @@ export default function ProcessNode({ data, selected }: NodeProps<ProcessNodeTyp
 
       <div className="process-node__name">{step.name}</div>
 
+      {step.owning_team && <div className="process-node__owner">{step.owning_team}</div>}
+
       {pctOfLeadTime > 0 && (
         <div className="process-node__bar-track">
           <div
