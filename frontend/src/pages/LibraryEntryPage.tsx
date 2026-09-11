@@ -53,20 +53,23 @@ export default function LibraryEntryPage() {
 
           <header className="library-entry-page__header">
             <div className="library-entry-page__headline">
+              {entry.template_category && (
+                <span className="library-card__category">{entry.template_category}</span>
+              )}
               <h1 className="library-entry-page__title">{name}</h1>
               <div className="library-card__meta">
                 <span>{entry.step_count} step{entry.step_count !== 1 ? 's' : ''}</span>
                 <span>·</span>
                 <span>{usedByLabel(entry.used_by_projects)}</span>
-                {entry.template_category && (
-                  <>
-                    <span>·</span>
-                    <span>{entry.template_category}</span>
-                  </>
-                )}
               </div>
             </div>
             <div className="library-entry-page__action">
+              <Link className="library-btn library-btn--primary library-entry-page__preview-btn" to={`/maps/${entry.id}`}>
+                👁 Preview the map
+              </Link>
+              <p className="library-entry-page__preview-hint">
+                Opens the read-only map — Timeline, Node view, and any nested sub-processes.
+              </p>
               {cloning ? (
                 <CloneForm
                   defaultName={name}
@@ -75,7 +78,7 @@ export default function LibraryEntryPage() {
                   pending={cloneMap.isPending}
                 />
               ) : (
-                <button className="library-btn library-btn--primary" onClick={() => setCloning(true)}>
+                <button className="library-btn library-btn--ghost" onClick={() => setCloning(true)}>
                   📋 Clone into project
                 </button>
               )}
@@ -83,11 +86,14 @@ export default function LibraryEntryPage() {
           </header>
 
           {paragraphs.length > 0 && (
-            <div className="library-entry-page__desc">
-              {paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-            </div>
+            <section className="library-entry-page__desc-card">
+              <h2 className="library-entry-page__desc-eyebrow">About this template</h2>
+              <div className="library-entry-page__desc">
+                {paragraphs.map((p, i) => (
+                  <p key={i}>{p}</p>
+                ))}
+              </div>
+            </section>
           )}
         </div>
       </div>
