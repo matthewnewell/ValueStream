@@ -46,7 +46,7 @@ export default function LibraryPage() {
         <div className="library-page__inner">
         <p className="library-page__intro">
           Starting points for a new value stream, ready to clone and customize. Cloning creates
-          your own editable copy filed under a project — the library entry itself never changes.
+          your own editable copy filed under a project.
         </p>
 
         {isLoading && <div className="library-page__loading">Loading library…</div>}
@@ -60,15 +60,7 @@ export default function LibraryPage() {
                 <h3 className="library-group__title">{category}</h3>
                 <div className="library-grid">
                   {maps.map((m) => (
-                    <LibraryCard
-                      key={m.id}
-                      entry={m}
-                      cloning={cloningId === m.id}
-                      onStartClone={() => setCloningId(m.id)}
-                      onCancelClone={() => setCloningId(null)}
-                      onClone={(portfolio, project, name) => handleClone(m.id, portfolio, project, name)}
-                      pending={cloneMap.isPending}
-                    />
+                    <LibraryCard key={m.id} entry={m} onOpen={() => navigate(`/library/${m.id}`)} />
                   ))}
                 </div>
               </div>
@@ -124,8 +116,9 @@ export default function LibraryPage() {
   )
 }
 
-// ── Clone-into-a-project form, shared by the featured cards and the published rows ──────────
-function CloneForm({
+// ── Clone-into-a-project form — shared with LibraryEntryPage (the featured show page) and
+// the published rows below ───────────────────────────────────────────────────────────────
+export function CloneForm({
   defaultName,
   onCancel,
   onClone,
@@ -172,43 +165,30 @@ function CloneForm({
   )
 }
 
-function usedByLabel(n: number) {
+export function usedByLabel(n: number) {
   return n === 0 ? 'Not cloned yet' : `Used by ${n} project${n === 1 ? '' : 's'}`
 }
 
-function LibraryCard({
-  entry,
-  cloning,
-  onStartClone,
-  onCancelClone,
-  onClone,
-  pending,
-}: {
-  entry: LibraryEntry
-  cloning: boolean
-  onStartClone: () => void
-  onCancelClone: () => void
-  onClone: (portfolio: string, project: string, name: string) => void
-  pending: boolean
-}) {
-  const displayName = entry.name.replace(/^Template:\s*/, '')
+export function displayName(entry: Pick<LibraryEntry, 'name'>) {
+  return entry.name.replace(/^Template:\s*/, '')
+}
+
+/** A featured template is a clickable preview tile — name, a clamped 2-line blurb, and the
+ * meta line. Clicking opens LibraryEntryPage, where the full description and Clone live;
+ * cloning doesn't happen inline here anymore, so the tile stays a quick scan of what's on
+ * offer instead of a form-per-card grid. */
+function LibraryCard({ entry, onOpen }: { entry: LibraryEntry; onOpen: () => void }) {
   return (
-    <div className="library-card">
-      <div className="library-card__name">{displayName}</div>
+    <button className="library-card" onClick={onOpen}>
+      <div className="library-card__name">{displayName(entry)}</div>
       {entry.description && <div className="library-card__desc">{entry.description}</div>}
       <div className="library-card__meta">
         <span>{entry.step_count} step{entry.step_count !== 1 ? 's' : ''}</span>
         <span>·</span>
         <span>{usedByLabel(entry.used_by_projects)}</span>
       </div>
-      {cloning ? (
-        <CloneForm defaultName={displayName} onCancel={onCancelClone} onClone={onClone} pending={pending} />
-      ) : (
-        <button className="library-btn library-btn--primary library-card__clone" onClick={onStartClone}>
-          📋 Clone into project
-        </button>
-      )}
-    </div>
+      <span className="library-card__open">View →</span>
+    </button>
   )
 }
 

@@ -3,6 +3,7 @@ import VsmLayout from './pages/VsmLayout'
 import SplashPage from './pages/SplashPage'
 import SamplePage from './pages/SamplePage'
 import LibraryPage from './pages/LibraryPage'
+import LibraryEntryPage from './pages/LibraryEntryPage'
 import AdminPage from './pages/AdminPage'
 import MapLayout from './pages/MapLayout'
 import MapEditorPage from './pages/MapEditorPage'
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/" element={<SplashPage />} />
         <Route path="/sample" element={<SamplePage />} />
         <Route path="/library" element={<LibraryPage />} />
+        <Route path="/library/:mapId" element={<LibraryEntryPage />} />
         <Route path="/admin" element={<AdminPage />} />
         {/* The old global "Value Stream Maps" list is retired — working maps are managed from
             Admin, the library is where you browse and clone. Keep the URL alive. */}

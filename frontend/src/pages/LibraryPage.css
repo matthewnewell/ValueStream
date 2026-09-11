@@ -78,7 +78,9 @@
 /* ── featured cards ── */
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* auto-fit (not auto-fill): with only 1-3 featured tiles today, empty tracks collapse so the
+     real cards stretch to fill the row instead of leaving dead space beside a lone card. */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
 }
 
@@ -90,6 +92,16 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.library-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .library-card__name {
@@ -101,6 +113,11 @@
   font-size: 12px;
   color: var(--color-text-secondary);
   line-height: 1.5;
+  max-width: 62ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .library-card__meta {
@@ -110,8 +127,12 @@
   color: var(--color-text-faint);
 }
 
-.library-card__clone {
+.library-card__open {
   margin-top: auto;
+  padding-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 /* ── published table ── */
