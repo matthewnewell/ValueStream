@@ -227,16 +227,34 @@ def delete_map(map_id):
     Map.query.filter_by(published_from_map_id=map_id).update(
         {"published_from_map_id": None}, synchronize_session=False
     )
-    db.session.delete(m)
+    # Recursive, not a plain db.session.delete(m) — a map can own nested sub-processes (via
+    # "Expand into sub-process", or a seeded template that ships with one); a flat delete would
+    # cascade this map's own steps/edges but leave any child maps orphaned.
+    from seed import _delete_map_tree
+
+    _delete_map_tree(m)
     db.session.commit()
     return "", 204
 
 
-def _deep_copy_map(src: Map, *, name: str, lifecycle: str = "working", template_category: str | None = None) -> Map:
+def _deep_copy_map(
+    src: Map,
+    *,
+    name: str,
+    lifecycle: str = "working",
+    template_category: str | None = None,
+    _depth: int = 0,
+) -> Map:
     """Shared deep-copy mechanics for duplicate (plain working copy), clone (working copy out of
     the library) and publish (a frozen 'published' snapshot) below — same graph copy, different
     destination lifecycle. Caller still owns the commit, and sets cloned_from / published_from /
-    portfolio+project as the case needs."""
+    portfolio+project as the case needs.
+
+    Recurses into any step's nested sub-process, so a copy is a real copy — a template (or a
+    real project map) built with "Expand into sub-process" keeps its decomposition on clone,
+    duplicate, and publish rather than silently collapsing every expanded step back to a plain
+    leaf. `_depth` is an internal recursion guard (see MAX_NESTING_DEPTH) against the — should
+    be impossible, given "one owning step per child map" — case of a cycle."""
     new_map = Map(
         name=name, description=src.description,
         lifecycle=lifecycle,
@@ -265,14 +283,22 @@ def _deep_copy_map(src: Map, *, name: str, lifecycle: str = "working", template_
             machines=s.machines,
             notes=s.notes,
             pct_complete_accurate=s.pct_complete_accurate,
-            # child_map_id intentionally NOT copied: "one owning step per child map" is the
-            # invariant that lets metrics rollup stay simple, and pointing two steps at the
-            # same child map would break it. A copied step starts as a plain leaf; the
-            # operator can /expand it fresh if the copy also needs its own sub-process.
         )
         db.session.add(new_step)
         db.session.flush()
         old_to_new_step_id[s.id] = new_step.id
+
+        if s.child_map_id and _depth < MAX_NESTING_DEPTH:
+            child_src = Map.query.get(s.child_map_id)
+            if child_src is not None:
+                # A nested child always lands as a plain editable "working" map, whatever the
+                # root's own destination lifecycle is — it must never itself be "featured" or
+                # "published", or it would show up as its own entry in GET /maps/library.
+                child_copy = _deep_copy_map(
+                    child_src, name=child_src.name, lifecycle="working", _depth=_depth + 1,
+                )
+                new_step.child_map_id = child_copy.id
+                db.session.flush()
 
     for e in src.edges:
         db.session.add(
@@ -346,8 +372,13 @@ def publish_map(map_id):
     new_name = (body.get("name") or src.name).strip()
 
     # Republish = overwrite: drop any existing snapshot published from this same working map.
+    # A snapshot can now own nested sub-processes (see _deep_copy_map's recursion), so a plain
+    # db.session.delete would orphan its children — use the same recursive tree-delete the
+    # sample reset uses.
+    from seed import _delete_map_tree
+
     for prior in Map.query.filter_by(published_from_map_id=src.id).all():
-        db.session.delete(prior)
+        _delete_map_tree(prior)
 
     snapshot = _deep_copy_map(src, name=new_name, lifecycle="published", template_category=category)
     snapshot.published_from_map_id = src.id

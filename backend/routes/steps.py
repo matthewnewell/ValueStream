@@ -127,6 +127,10 @@ def collapse_step(step_id):
     child_map = Map.query.get(step.child_map_id)
     step.child_map_id = None  # explicit, rather than relying solely on ON DELETE SET NULL
     if child_map is not None:
-        db.session.delete(child_map)  # cascades to the child map's own steps + edges
+        # Recursive delete, not a flat db.session.delete — the child map itself might own a
+        # further-nested sub-process (double expansion), which a flat delete would orphan.
+        from seed import _delete_map_tree
+
+        _delete_map_tree(child_map)
     db.session.commit()
     return "", 204

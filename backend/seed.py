@@ -408,16 +408,163 @@ def _seed_program_value_stream_template():
     E(std_accept, impl, 1 * WEEK, "incoming inspection queue", "internal")
 
 
+# ── Second featured template: a manufacturing routing canvas ───────────────────────────────
+#
+# Narrower and operational rather than a whole-program spine: one box rolls up the engineering
+# work that has to close before production can start, one box is the routing itself. Both are
+# nested (Step.child_map_id) — "Design & Engineering" expands into Requirements -> Design ->
+# Configuration Baseline, "Implementation" expands into the routing — so the top-level canvas
+# stays uncluttered by req/design/CM detail nobody on the shop floor needs to touch, and
+# production support's own canvas (the routing) isn't sharing space with anything else.
+#
+# All durations are 0: unlike the program template, this one isn't telling an illustrative
+# story — it's the literal tool production support fills in with their actual routing and
+# actual times, so fabricated example numbers would just be noise to clear out first.
+
+_15288_MFG = "Manufacturing Routing"
+_MFG_ROUTING_TEMPLATE_NAME = "Template: Manufacturing Routing (ISO/IEC/IEEE 15288)"
+
+_MFG_ROUTING_DESCRIPTION = (
+    "A manufacturing routing value stream anchored to ISO/IEC/IEEE 15288:2015. \"Design & "
+    "Engineering\" rolls up System Requirements Definition (6.4.3), Design Definition (6.4.5), "
+    "and the Configuration Baseline that releases the design to production (a milestone from "
+    "the Configuration Management process, 6.3.5, not a process in its own right) — expand it "
+    "to see each step.\n\n"
+    "\"Implementation process (Clause 6.4.7)\" is the routing: expand it and edit the "
+    "operations to match your actual routing, recording each one's processing time and the "
+    "wait to the next. The eight seeded here are generic placeholders, not 15288 clause items "
+    "— reorder, rename, add, or delete them freely."
+)
+
+
+def _seed_manufacturing_routing_template():
+    m = Map(
+        name=_MFG_ROUTING_TEMPLATE_NAME,
+        description=_MFG_ROUTING_DESCRIPTION,
+        lifecycle="featured",
+        is_template=True,
+        template_category=_15288_MFG,
+    )
+    db.session.add(m)
+    db.session.flush()
+
+    design_eng = Step(
+        map_id=m.id, name="Design & Engineering", owning_team="Engineering",
+        description=(
+            "Requirements through the configuration baseline that releases the design to "
+            "production. Expand to see Requirements, Design, and Configuration Baseline."
+        ),
+        pos_x=40, pos_y=200,
+    )
+    make = Step(
+        map_id=m.id, name="Implementation process (Clause 6.4.7) — Manufacturing",
+        owning_team="Production Support",
+        description=(
+            "The manufacturing routing. Expand and edit the operations to match your actual "
+            "routing, recording each one's processing time and the wait to the next."
+        ),
+        pos_x=420, pos_y=200,
+    )
+    db.session.add_all([design_eng, make])
+    db.session.flush()
+
+    db.session.add(Edge(
+        map_id=m.id, source_step_id=design_eng.id, target_step_id=make.id,
+        wait_time_sec=0, label="design released to production", wait_kind="internal",
+    ))
+
+    # ── "Design & Engineering" sub-process ──
+    de_map = Map(
+        name="Design & Engineering — sub-process",
+        description=f'Sub-process for "Design & Engineering" in {m.name}.',
+    )
+    db.session.add(de_map)
+    db.session.flush()
+    design_eng.child_map_id = de_map.id
+
+    req = Step(
+        map_id=de_map.id, name="System Requirements Definition process (Clause 6.4.3)",
+        owning_team="Systems Engineering",
+        description="Translate stakeholder needs into verifiable system requirements.",
+        pos_x=40, pos_y=200,
+    )
+    des = Step(
+        map_id=de_map.id, name="Design Definition process (Clause 6.4.5)",
+        owning_team="Design Engineering",
+        description="Develop the detailed design sufficient to build each system element.",
+        pos_x=340, pos_y=200,
+    )
+    cb = Step(
+        map_id=de_map.id,
+        name="Configuration Baseline — Product Baseline (Configuration Management process, Clause 6.3.5)",
+        owning_team="Configuration Management",
+        description=(
+            "The design is formally baselined and released for production — a milestone from "
+            "the Configuration Management process, not a process name in its own right."
+        ),
+        pos_x=640, pos_y=200,
+    )
+    db.session.add_all([req, des, cb])
+    db.session.flush()
+    db.session.add_all([
+        Edge(map_id=de_map.id, source_step_id=req.id, target_step_id=des.id, wait_time_sec=0),
+        Edge(map_id=de_map.id, source_step_id=des.id, target_step_id=cb.id, wait_time_sec=0),
+    ])
+
+    # ── "Implementation" / manufacturing routing sub-process ──
+    routing_map = Map(
+        name="Manufacturing Routing — sub-process",
+        description=f'Sub-process for "{make.name}" in {m.name}.',
+    )
+    db.session.add(routing_map)
+    db.session.flush()
+    make.child_map_id = routing_map.id
+
+    op_defs = [
+        ("Material Issue / Kitting", "Material Handling",
+         "Pull and kit the parts and materials called out on the routing."),
+        ("Fabrication (Cut / Machine)", "Machine Shop",
+         "Cut, mill, turn, or otherwise machine parts to print."),
+        ("Joining (Weld / Braze / Bond)", "Weld Shop",
+         "Join fabricated parts per the design's joining method."),
+        ("In-Process Inspection", "Quality",
+         "Verify the in-process build against the drawing before it moves on."),
+        ("Finish (Paint / Coat / Plate)", "Paint & Finish",
+         "Apply the specified surface finish or protective coating."),
+        ("Assembly", "Assembly",
+         "Assemble the finished parts and installed hardware into the end item."),
+        ("Final Inspection & Test", "Quality",
+         "Final acceptance inspection and functional test before release."),
+        ("Pack & Stage to Stock", "Shipping & Receiving",
+         "Pack, label, and stage the completed unit."),
+    ]
+    ops = []
+    for i, (op_name, team, desc) in enumerate(op_defs):
+        s = Step(
+            map_id=routing_map.id, name=op_name, owning_team=team, description=desc,
+            pos_x=40 + i * 260, pos_y=200,
+        )
+        db.session.add(s)
+        ops.append(s)
+    db.session.flush()
+    for a, b in zip(ops, ops[1:]):
+        db.session.add(
+            Edge(map_id=routing_map.id, source_step_id=a.id, target_step_id=b.id, wait_time_sec=0)
+        )
+
+
 def seed_templates_if_missing():
-    """Idempotent startup: ensure the one program value-stream template exists, and retire the
-    three superseded single-family scaffolds if an older DB still carries them. Keyed by name,
-    so re-running never duplicates and never touches real project maps."""
+    """Idempotent startup: ensure the featured templates exist, and retire the three
+    superseded single-family scaffolds if an older DB still carries them. Keyed by name, so
+    re-running never duplicates and never touches real project maps."""
     for name in _RETIRED_TEMPLATE_NAMES:
         stale = Map.query.filter_by(name=name).first()
         if stale is not None:
             _delete_map_tree(stale)
     if not Map.query.filter_by(name=_PROGRAM_TEMPLATE_NAME).first():
         _seed_program_value_stream_template()
+    if not Map.query.filter_by(name=_MFG_ROUTING_TEMPLATE_NAME).first():
+        _seed_manufacturing_routing_template()
     db.session.commit()
 
 
