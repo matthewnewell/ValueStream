@@ -77,26 +77,33 @@
   color: var(--color-text-secondary);
 }
 
-.library-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.library-group__title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-accent);
-}
-
 /* ── featured cards ── */
 .library-grid {
   display: grid;
-  /* auto-fit (not auto-fill): with only 1-3 featured tiles today, empty tracks collapse so the
-     real cards stretch to fill the row instead of leaving dead space beside a lone card. */
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  /* A fixed 2 columns, not auto-fit/auto-fill — with only a handful of tiles those stretched a
+     lone card (or a lone category's worth) to fill the whole row, all dead space around two
+     short lines of text. Category now shows as a badge on the tile (see __category below)
+     rather than a heading per group, so the grid stays one flat, ordered sequence. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .library-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.library-card__category {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .library-card {

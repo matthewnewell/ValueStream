@@ -5,6 +5,17 @@ import type { LibraryEntry } from '../api/types'
 import InfoPopover from '../components/InfoPopover'
 import './LibraryPage.css'
 
+/** Reading order for the featured grid — a tag, not a hierarchy (see the InfoPopover below),
+ * but tiles still read better in a stable sequence than alphabetically: the whole-lifecycle
+ * escape hatch first, then narrow single-purpose streams grouped by kind. Anything not in this
+ * list (shouldn't happen once a template is tagged) sorts last rather than erroring. */
+const CATEGORY_ORDER = ['Whole Program', 'Development', 'Enterprise Support', 'Fulfillment & Operational']
+
+function categoryRank(category: string | null): number {
+  const i = CATEGORY_ORDER.indexOf(category ?? '')
+  return i === -1 ? CATEGORY_ORDER.length : i
+}
+
 /** The Map Library: featured 15288 scaffolds up top, then the growing list of maps published
  * from real projects at closeout — each cloned (never edited in place) to start a new project.
  * "Used by N projects" is the reuse signal. Own route, same "full page" pattern as the Timeline view. */
@@ -15,7 +26,6 @@ export default function LibraryPage() {
   const [cloningId, setCloningId] = useState<string | null>(null)
   const [sortDesc, setSortDesc] = useState(true)
 
-  const featured = (entries ?? []).filter((e) => e.lifecycle === 'featured')
   const published = useMemo(() => {
     const list = (entries ?? []).filter((e) => e.lifecycle === 'published')
     return list.sort(
@@ -25,14 +35,17 @@ export default function LibraryPage() {
     )
   }, [entries, sortDesc])
 
-  const featuredGroups = useMemo(() => {
-    const groups = new Map<string, LibraryEntry[]>()
-    for (const e of featured) {
-      const key = e.template_category ?? 'Other'
-      groups.set(key, [...(groups.get(key) ?? []), e])
-    }
-    return [...groups.entries()]
-  }, [featured])
+  // One flat, ordered grid rather than a section per category — a lone template in its own
+  // category used to stretch to fill the whole row (auto-fit with one item = one huge card).
+  // The category now shows as a badge on the tile instead of a group heading.
+  const featured = useMemo(() => {
+    const list = (entries ?? []).filter((e) => e.lifecycle === 'featured')
+    return list.sort(
+      (a, b) =>
+        categoryRank(a.template_category) - categoryRank(b.template_category) ||
+        a.name.localeCompare(b.name),
+    )
+  }, [entries])
 
   function handleClone(id: string, portfolio: string, project: string, name: string) {
     cloneMap.mutate(
@@ -53,7 +66,7 @@ export default function LibraryPage() {
         {isLoading && <div className="library-page__loading">Loading library…</div>}
 
         {/* ── Featured: org-issued generic scaffolds ── */}
-        {featuredGroups.length > 0 && (
+        {featured.length > 0 && (
           <section className="library-section">
             <div className="library-section__head">
               <h2 className="library-section__title">Featured — issued by the organization</h2>
@@ -67,29 +80,24 @@ export default function LibraryPage() {
                 transition. Drills into any phase as needed.
                 <br />
                 <br />
+                <strong>Development</strong> — designing, building, and qualifying a capability,
+                system, or platform — including production and manufacturing execution.
+                <br />
+                <br />
                 <strong>Enterprise Support</strong> — recurring business services that enable the
                 work without building the product directly. The unit moving through is a
                 contract, request, or compliance task.
-                <br />
-                <br />
-                <strong>Development</strong> — designing, building, and qualifying a capability,
-                system, or platform — including production and manufacturing execution.
                 <br />
                 <br />
                 <strong>Fulfillment &amp; Operational</strong> — recurring orders or requests
                 processed through an already-established capability.
               </InfoPopover>
             </div>
-            {featuredGroups.map(([category, maps]) => (
-              <div key={category} className="library-group">
-                <h3 className="library-group__title">{category}</h3>
-                <div className="library-grid">
-                  {maps.map((m) => (
-                    <LibraryCard key={m.id} entry={m} onOpen={() => navigate(`/library/${m.id}`)} />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="library-grid">
+              {featured.map((m) => (
+                <LibraryCard key={m.id} entry={m} onOpen={() => navigate(`/library/${m.id}`)} />
+              ))}
+            </div>
           </section>
         )}
 
@@ -205,6 +213,9 @@ export function displayName(entry: Pick<LibraryEntry, 'name'>) {
 function LibraryCard({ entry, onOpen }: { entry: LibraryEntry; onOpen: () => void }) {
   return (
     <button className="library-card" onClick={onOpen}>
+      {entry.template_category && (
+        <span className="library-card__category">{entry.template_category}</span>
+      )}
       <div className="library-card__name">{displayName(entry)}</div>
       {entry.description && <div className="library-card__desc">{entry.description}</div>}
       <div className="library-card__meta">

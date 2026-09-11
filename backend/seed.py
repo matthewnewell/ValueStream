@@ -568,6 +568,116 @@ def _seed_manufacturing_routing_template():
         )
 
 
+# ── Third featured template: procurement & acquisition ─────────────────────────────────────
+#
+# The Enterprise Support example the user asked for by name: "SOW and buying stuff, PR/PO."
+# Faithfully, every box here is the Acquisition process (6.1.1) — the program is the acquirer
+# buying from a supplier who runs Supply (6.1.2) back toward it, same framing as the two
+# procurement tracks inside the program template. Statement of Work, RFP/RFQ, PR, and PO are
+# real procurement artifacts *within* that one process, not separate 15288 clause items — no
+# guessing there, flagged in the description same as the milestone-name convention elsewhere.
+#
+# Two paths off "Prepare," independently prunable, telling one story on purpose: a Statement-
+# of-Work path for services/complex buys runs far longer (negotiation, a performance period)
+# than a Purchase-Requisition/Purchase-Order path for a straightforward material buy — exactly
+# the kind of thing worth seeing side by side before picking which path a given buy should take.
+
+_PROCUREMENT_TEMPLATE_NAME = "Template: Procurement & Acquisition (ISO/IEC/IEEE 15288)"
+
+_PROCUREMENT_DESCRIPTION = (
+    "A procurement value stream anchored to ISO/IEC/IEEE 15288:2015. The program is the "
+    "acquirer, so every step here is the Acquisition process (6.1.1) — Statement of Work, "
+    "RFP/RFQ, PR, and PO are real procurement artifacts within that one process, not separate "
+    "15288 clause items.\n\n"
+    "Two paths branch off \"Prepare\" and can be deleted independently: a Statement-of-Work "
+    "path for services or complex buys (draft the SOW, solicit and select a supplier, award "
+    "the contract, monitor performance, accept), and a Purchase-Requisition/Purchase-Order "
+    "path for a straightforward material buy (PR, PO, receive). Wait times are representative "
+    "weeks — the SOW path runs far longer than PR/PO, usually the point of comparing them."
+)
+
+
+def _seed_procurement_template():
+    m = Map(
+        name=_PROCUREMENT_TEMPLATE_NAME,
+        description=_PROCUREMENT_DESCRIPTION,
+        lifecycle="featured",
+        is_template=True,
+        template_category=CATEGORY_ENTERPRISE_SUPPORT,
+    )
+    db.session.add(m)
+    db.session.flush()
+
+    def S(name, team, x, y, desc):
+        s = Step(map_id=m.id, name=name, owning_team=team, description=desc, pos_x=x, pos_y=y)
+        db.session.add(s)
+        return s
+
+    prepare = S(
+        "Acquisition process — Prepare (Clause 6.1.1)", "Requesting Organization",
+        40, 260,
+        "Define the requirement and make/buy decision; decide whether this is a formal "
+        "statement-of-work buy or a straightforward purchase requisition.",
+    )
+
+    # SOW / services path
+    sow_y = 60
+    sow = S(
+        "Acquisition process — Draft Statement of Work (Clause 6.1.1)", "Procurement Engineering",
+        340, sow_y, "Write the SOW: scope, deliverables, acceptance criteria.",
+    )
+    solicit = S(
+        "Acquisition process — Solicit & Select Supplier, RFP/RFQ (Clause 6.1.1)", "Contracts",
+        640, sow_y, "Issue the RFP/RFQ, evaluate proposals, select a supplier.",
+    )
+    award = S(
+        "Acquisition process — Establish Agreement, Contract Award (Clause 6.1.1)", "Contracts",
+        940, sow_y, "Negotiate terms and award the contract.",
+    )
+    monitor = S(
+        "Acquisition process — Monitor the Agreement (Clause 6.1.1)", "Program Management",
+        1240, sow_y, "Track supplier performance through the period of performance.",
+    )
+    sow_accept = S(
+        "Acquisition process — Accept, Supplier Fulfillment (Clause 6.1.1)",
+        "Requesting Organization / Quality", 1540, sow_y,
+        "Accept the delivered service or deliverable against the SOW.",
+    )
+
+    # PR/PO / material path
+    po_y = 460
+    pr = S(
+        "Acquisition process — Purchase Requisition, PR (Clause 6.1.1)", "Requesting Organization",
+        340, po_y, "Requester submits a PR for a stocked or standard-catalog item.",
+    )
+    po = S(
+        "Acquisition process — Purchase Order Issued, PO (Clause 6.1.1)", "Procurement",
+        640, po_y, "Procurement converts the approved PR into a PO against a supplier.",
+    )
+    po_accept = S(
+        "Acquisition process — Accept, Receiving Inspection (Clause 6.1.1)", "Receiving Inspection",
+        940, po_y, "Receive and inspect the delivered item against the PO.",
+    )
+
+    db.session.flush()
+
+    def E(a, b, wait_sec, label, wait_kind):
+        db.session.add(Edge(
+            map_id=m.id, source_step_id=a.id, target_step_id=b.id,
+            wait_time_sec=wait_sec, label=label, wait_kind=wait_kind,
+        ))
+
+    E(prepare, sow, 3 * DAY, "requirement approved", "internal")
+    E(sow, solicit, 2 * WEEK, "SOW drafting", "internal")
+    E(solicit, award, 4 * WEEK, "RFP/RFQ response + evaluation", "external")
+    E(award, monitor, 2 * WEEK, "contract negotiation & award", "internal")
+    E(monitor, sow_accept, 8 * WEEK, "supplier performance period", "external")
+
+    E(prepare, pr, 1 * DAY, "PR submitted", "internal")
+    E(pr, po, 2 * DAY, "PR approval routing", "internal")
+    E(po, po_accept, 2 * WEEK, "supplier delivery lead time", "external")
+
+
 def _ensure_template(name: str, category: str, builder) -> None:
     """Create the named featured template if missing; if it already exists, backfill its
     category onto the taxonomy's current value (e.g. after a rename) without touching anything
@@ -589,6 +699,9 @@ def seed_templates_if_missing():
             _delete_map_tree(stale)
     _ensure_template(_PROGRAM_TEMPLATE_NAME, _15288_PROGRAM, _seed_program_value_stream_template)
     _ensure_template(_MFG_ROUTING_TEMPLATE_NAME, _15288_MFG, _seed_manufacturing_routing_template)
+    _ensure_template(
+        _PROCUREMENT_TEMPLATE_NAME, CATEGORY_ENTERPRISE_SUPPORT, _seed_procurement_template
+    )
     db.session.commit()
 
 
