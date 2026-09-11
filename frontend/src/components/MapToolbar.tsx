@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import './MapToolbar.css'
 
 interface MapToolbarProps {
@@ -11,8 +11,9 @@ interface MapToolbarProps {
   /** View-specific page actions (Add step on Node, Publish on Timeline), rendered just left of
    * the Timeline/Node toggle. */
   actions?: React.ReactNode
-  /** A published snapshot or a featured scaffold: frozen, a "Read-only" pill instead of the
-   * Timeline/Node toggle. */
+  /** A published snapshot or a featured scaffold: frozen — a "Read-only" pill sits alongside
+   * the Timeline/Node/Journal toggle (still previewable, just not editable), and a "← Back to
+   * template" link appears above the title, back to where it was cloned from. */
   readOnly?: boolean
   /** The sample map: editable like any working map, plus a "↺ Reset" button that restores it
    * to the seeded state. */
@@ -37,6 +38,12 @@ export default function MapToolbar({
 
   return (
     <div className="map-toolbar">
+      {readOnly && (
+        <Link className="map-toolbar__back" to={`/library/${mapId}`}>
+          ← Back to template
+        </Link>
+      )}
+
       {onRenameMap && !readOnly ? (
         <input
           className="map-toolbar__title-input"
@@ -60,41 +67,41 @@ export default function MapToolbar({
 
         {actions && <div className="map-toolbar__actions">{actions}</div>}
 
-        {readOnly ? (
+        {readOnly && (
           <span
             className="map-toolbar__readonly-pill"
             title="Clone this into a project from the Map Library to make changes."
           >
             Read-only
           </span>
-        ) : (
-          <div className="map-toolbar__view-toggle" role="tablist">
-            <button
-              role="tab"
-              aria-selected={view === 'timeline'}
-              className={`map-toolbar__view-btn ${view === 'timeline' ? 'map-toolbar__view-btn--active' : ''}`}
-              onClick={() => navigate(`/maps/${mapId}/timeline`)}
-            >
-              Timeline
-            </button>
-            <button
-              role="tab"
-              aria-selected={view === 'node'}
-              className={`map-toolbar__view-btn ${view === 'node' ? 'map-toolbar__view-btn--active' : ''}`}
-              onClick={() => navigate(`/maps/${mapId}`)}
-            >
-              Node
-            </button>
-            <button
-              role="tab"
-              aria-selected={view === 'journal'}
-              className={`map-toolbar__view-btn ${view === 'journal' ? 'map-toolbar__view-btn--active' : ''}`}
-              onClick={() => navigate(`/maps/${mapId}/journal`)}
-            >
-              Journal
-            </button>
-          </div>
         )}
+
+        <div className="map-toolbar__view-toggle" role="tablist">
+          <button
+            role="tab"
+            aria-selected={view === 'timeline'}
+            className={`map-toolbar__view-btn ${view === 'timeline' ? 'map-toolbar__view-btn--active' : ''}`}
+            onClick={() => navigate(`/maps/${mapId}/timeline`)}
+          >
+            Timeline
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === 'node'}
+            className={`map-toolbar__view-btn ${view === 'node' ? 'map-toolbar__view-btn--active' : ''}`}
+            onClick={() => navigate(`/maps/${mapId}`)}
+          >
+            Node
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === 'journal'}
+            className={`map-toolbar__view-btn ${view === 'journal' ? 'map-toolbar__view-btn--active' : ''}`}
+            onClick={() => navigate(`/maps/${mapId}/journal`)}
+          >
+            Journal
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -14,6 +14,9 @@ interface EdgeDrawerProps {
   targetStepName: string
   metrics?: MapMetrics
   onClose: () => void
+  /** false on a read-only (featured/published) map: read mode only, no "Edit" affordance and
+   * no journal composer — the backend would 403 the write anyway. Defaults true. */
+  editable?: boolean
 }
 
 const KIND_LABEL: Record<'internal' | 'external', string> = {
@@ -28,6 +31,7 @@ export default function EdgeDrawer({
   targetStepName,
   metrics,
   onClose,
+  editable = true,
 }: EdgeDrawerProps) {
   const [mode, setMode] = useState<'read' | 'edit'>('read')
   const [kind, setKind] = useState(edge.kind === 'rework' ? 'rework' : 'flow')
@@ -179,17 +183,19 @@ export default function EdgeDrawer({
           )}
         </dl>
 
-        <div className="edge-drawer__actions">
-          <button className="edge-drawer__edit-btn" onClick={() => setMode('edit')}>
-            ✎ Edit
-          </button>
-        </div>
+        {editable && (
+          <div className="edge-drawer__actions">
+            <button className="edge-drawer__edit-btn" onClick={() => setMode('edit')}>
+              ✎ Edit
+            </button>
+          </div>
+        )}
 
         <div className="edge-drawer__journal">
           <Journal
             mapId={mapId}
             target={{ type: 'edge', id: edge.id, name: title }}
-            editable
+            editable={editable}
             compact
           />
         </div>

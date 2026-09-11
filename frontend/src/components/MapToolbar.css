@@ -112,6 +112,18 @@
   color: var(--color-text);
 }
 
+.map-toolbar__back {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.map-toolbar__back:hover {
+  color: var(--color-accent);
+}
+
 .map-toolbar__readonly-pill {
   flex-shrink: 0;
   padding: 6px 12px;

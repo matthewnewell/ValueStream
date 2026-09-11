@@ -241,7 +241,7 @@ export default function VsmTimeline({
                     rx="7"
                   />
                   <text className="vsm-tl__work-name" x={seg.x + seg.w / 2} y={WORK_Y + 25} textAnchor="middle">
-                    {clip(seg.name, seg.w)}
+                    {clip(shortLabel(seg.name), seg.w)}
                   </text>
                   <text className="vsm-tl__work-dur" x={seg.x + seg.w / 2} y={WORK_Y + 40} textAnchor="middle">
                     {formatDurationCompact(seg.sec)}
@@ -315,7 +315,7 @@ export default function VsmTimeline({
                   </title>
                   <rect className="vsm-tl__off-work" x={it.x} y={OFF_Y} width={it.w} height={OFF_H} rx="4" />
                   <text className="vsm-tl__off-text" x={it.x + it.w / 2} y={OFF_Y + 14} textAnchor="middle">
-                    {clip(it.label, it.w)}
+                    {clip(shortLabel(it.label), it.w)}
                   </text>
                 </g>
               ) : (
@@ -364,4 +364,19 @@ export default function VsmTimeline({
 function clip(text: string, w: number): string {
   const max = Math.max(3, Math.floor((w - 8) / 6))
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`
+}
+
+/** A box's raw name is the full, precise name shown everywhere else (drawer, journal, the
+ * focus list) — often "Acquisition process — Solicit & Select Supplier (Clause 6.1.1)", where
+ * the leading "<generic process> — " repeats across a whole family of boxes and the trailing
+ * "(Clause …)" tells you nothing at a glance. Pull out just the distinctive middle for the
+ * small on-canvas label so "Acquisition process — Solicit & Select Supplier" reads as "Solicit
+ * & Select Supplier" instead of clipping to "Acq…" before the dash is even reached; `clip`
+ * still trims further if the box is narrower than that. Falls back to the clause-stripped full
+ * name when there's no " — "/" - " to split on (e.g. "System Requirements Definition process
+ * (Clause 6.4.3)" → "System Requirements Definition process"). */
+function shortLabel(name: string): string {
+  const afterDash = name.split(/\s+[—-]\s+/).pop() ?? name
+  const stripped = afterDash.replace(/\s*\([^)]*\)\s*$/, '').trim()
+  return stripped || name
 }

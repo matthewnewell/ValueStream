@@ -34,6 +34,9 @@ interface MapCanvasProps {
   onSelectEdge: (edgeId: string | null) => void
   /** Navigate into a step's sub-process (creating one first if it doesn't have one yet). */
   onExpandStep: (stepId: string) => void
+  /** A featured/published map: dragging and connecting are disabled outright (not just left to
+   * fail server-side) — clicking a node/edge still selects it, for the read-only drawer. */
+  readOnly?: boolean
 }
 
 function toFlowNodes(map: MapDetail, metrics: MapMetrics | undefined): ProcessNodeType[] {
@@ -87,6 +90,7 @@ function MapCanvasInner({
   selectedEdgeId,
   onSelectEdge,
   onExpandStep,
+  readOnly = false,
 }: MapCanvasProps) {
   const initialNodes = useMemo(() => toFlowNodes(map, metrics), [map, metrics])
   const initialEdges = useMemo(() => toFlowEdges(map, metrics), [map, metrics])
@@ -129,6 +133,7 @@ function MapCanvasInner({
   }, [initialEdges])
 
   const handleNodeDragStop: OnNodeDrag<ProcessNodeType> = (_, node) => {
+    if (readOnly) return
     updateStep.mutate({
       stepId: node.id,
       data: { pos_x: node.position.x, pos_y: node.position.y },
@@ -136,6 +141,7 @@ function MapCanvasInner({
   }
 
   const handleConnect = (connection: Connection) => {
+    if (readOnly) return
     if (!connection.source || !connection.target) return
     createEdge.mutate({
       source_step_id: connection.source,
@@ -177,6 +183,8 @@ function MapCanvasInner({
         onSelectStep(null)
         onSelectEdge(null)
       }}
+      nodesDraggable={!readOnly}
+      nodesConnectable={!readOnly}
       fitView
       minZoom={0.2}
       maxZoom={2}

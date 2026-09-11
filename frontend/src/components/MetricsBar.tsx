@@ -5,7 +5,8 @@ import './MetricsBar.css'
 interface MetricsBarProps {
   metrics: MapMetrics | undefined
   isLoading: boolean
-  onAddStep: () => void
+  /** Omitted on a read-only (featured/published) map — no "+ Add step" there. */
+  onAddStep?: () => void
 }
 
 /** The Node view's own strip: the map-wide numbers, plus the one action unique to this view.
@@ -79,9 +80,11 @@ export default function MetricsBar({ metrics, isLoading, onAddStep }: MetricsBar
         </>
       )}
 
-      <button className="metrics-bar__add" onClick={onAddStep}>
-        + Add step
-      </button>
+      {onAddStep && (
+        <button className="metrics-bar__add" onClick={onAddStep}>
+          + Add step
+        </button>
+      )}
     </div>
   )
 }

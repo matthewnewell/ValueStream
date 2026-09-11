@@ -250,6 +250,10 @@ export default function TimelinePage() {
       navigate(`/maps/${step.child_map_id}/timeline`)
       return
     }
+    // A frozen template never gets a new sub-process created on the fly while previewing it —
+    // only reachable in practice since edit mode (the only place this fires with no existing
+    // child map) is itself unavailable when !editable, but stay defensive.
+    if (!editable) return
     expandStep.mutate(step.id, {
       onSuccess: (child) => navigate(`/maps/${child.id}/timeline`),
     })
@@ -262,9 +266,9 @@ export default function TimelinePage() {
   function renderFocusRow(it: FocusItem) {
     const act = it.drillMapId
       ? () => navigate(`/maps/${it.drillMapId}/timeline`)
-      : editable && it.edgeId
+      : it.edgeId
         ? () => openEdge(it.edgeId!)
-        : editable && it.stepId
+        : it.stepId
           ? () => openStep(it.stepId!)
           : undefined
     const isSel =
@@ -327,8 +331,8 @@ export default function TimelinePage() {
           <VsmTimeline
             map={map}
             metrics={metrics}
-            onSelectStep={editable ? openStep : undefined}
-            onSelectEdge={editable ? openEdge : undefined}
+            onSelectStep={openStep}
+            onSelectEdge={openEdge}
             selectedId={selStepId ?? selEdgeId}
           />
 
@@ -469,6 +473,7 @@ export default function TimelinePage() {
             metric={metrics.step_metrics[selectedStep.id]}
             onClose={() => setSelStepId(null)}
             onExpand={() => handleExpand(selectedStep)}
+            editable={editable}
           />
         )}
         {selectedEdge && (
@@ -479,6 +484,7 @@ export default function TimelinePage() {
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelEdgeId(null)}
+            editable={editable}
           />
         )}
       </div>

@@ -14,6 +14,9 @@ interface StepDrawerProps {
   onClose: () => void
   /** Open (or create-then-open) this step's sub-process map. */
   onExpand: () => void
+  /** false on a read-only (featured/published) map: read mode only, no "Edit" affordance and
+   * no journal composer — the backend would 403 the write anyway. Defaults true. */
+  editable?: boolean
 }
 
 interface FormState {
@@ -49,7 +52,14 @@ function critLine(m: StepMetric | undefined): string | null {
   return 'Off the critical path.'
 }
 
-export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: StepDrawerProps) {
+export default function StepDrawer({
+  mapId,
+  step,
+  metric,
+  onClose,
+  onExpand,
+  editable = true,
+}: StepDrawerProps) {
   const [mode, setMode] = useState<'read' | 'edit'>('read')
   const [form, setForm] = useState<FormState>(() => toForm(step))
   const [why, setWhy] = useState('')
@@ -209,17 +219,19 @@ export default function StepDrawer({ mapId, step, metric, onClose, onExpand }: S
           )}
         </dl>
 
-        <div className="step-drawer__actions">
-          <button className="step-drawer__edit-btn" onClick={() => setMode('edit')}>
-            ✎ Edit
-          </button>
-        </div>
+        {editable && (
+          <div className="step-drawer__actions">
+            <button className="step-drawer__edit-btn" onClick={() => setMode('edit')}>
+              ✎ Edit
+            </button>
+          </div>
+        )}
 
         <div className="step-drawer__section step-drawer__journal">
           <Journal
             mapId={mapId}
             target={{ type: 'step', id: step.id, name: step.name }}
-            editable
+            editable={editable}
             compact
           />
         </div>

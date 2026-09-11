@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   useCreateStep,
   useExpandStep,
@@ -30,10 +30,11 @@ export default function MapEditorPage() {
 
   if (!mapId) return null
   if (isLoading || !map) return <div className="map-editor-page__loading">Loading map…</div>
-  // A published snapshot or a featured scaffold is frozen — no editor, send it to the Timeline view. (The
-  // library never links here for one; this covers a hand-typed URL.) The sample map IS
-  // editable, so it falls through to the editor like any working map.
-  if (map.read_only) return <Navigate to={`/maps/${mapId}/timeline`} replace />
+
+  // A published snapshot or a featured scaffold is frozen: the Node view still renders (so a
+  // template can be previewed, not just its Timeline) but drag/connect/add-step/edit are all
+  // switched off — same map.read_only the drawers and MapToolbar's pill key off of.
+  const readOnly = map.read_only
 
   const selectedStep = map.steps.find((s) => s.id === selectedStepId) ?? null
   const selectedEdge = map.edges.find((e) => e.id === selectedEdgeId) ?? null
@@ -68,6 +69,9 @@ export default function MapEditorPage() {
       navigate(`/maps/${step.child_map_id}/timeline`)
       return
     }
+    // A frozen template never gets a new sub-process created on the fly — only drilling into
+    // one that already exists (the branch above) makes sense while previewing it read-only.
+    if (readOnly) return
     expandStep.mutate(stepId, {
       onSuccess: (childMap) => navigate(`/maps/${childMap.id}/timeline`),
     })
@@ -88,14 +92,15 @@ export default function MapEditorPage() {
         mapId={mapId}
         mapName={map.name}
         view="node"
-        onRenameMap={(name) => updateMap.mutate({ name })}
+        readOnly={readOnly}
+        onRenameMap={readOnly ? undefined : (name) => updateMap.mutate({ name })}
         onReset={map.lifecycle === 'sample' ? handleReset : undefined}
       />
 
       <MetricsBar
         metrics={metrics}
         isLoading={metricsLoading}
-        onAddStep={handleAddStep}
+        onAddStep={readOnly ? undefined : handleAddStep}
       />
 
       <div className="map-editor-page__body">
@@ -109,6 +114,7 @@ export default function MapEditorPage() {
             selectedEdgeId={selectedEdgeId}
             onSelectEdge={handleSelectEdge}
             onExpandStep={handleExpandStep}
+            readOnly={readOnly}
           />
         </div>
 
@@ -119,6 +125,7 @@ export default function MapEditorPage() {
             metric={metrics?.step_metrics[selectedStep.id]}
             onClose={() => setSelectedStepId(null)}
             onExpand={() => handleExpandStep(selectedStep.id)}
+            editable={!readOnly}
           />
         )}
 
@@ -130,6 +137,7 @@ export default function MapEditorPage() {
             sourceStepName={stepsById.get(selectedEdge.source_step_id)?.name ?? '?'}
             targetStepName={stepsById.get(selectedEdge.target_step_id)?.name ?? '?'}
             onClose={() => setSelectedEdgeId(null)}
+            editable={!readOnly}
           />
         )}
       </div>
