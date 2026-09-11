@@ -678,6 +678,96 @@ def _seed_procurement_template():
     E(po, po_accept, 2 * WEEK, "supplier delivery lead time", "external")
 
 
+# ── Fourth featured template: software engineering ──────────────────────────────────────────
+#
+# Development's other half, alongside Manufacturing Routing — same shape: a short flat spine
+# of Technical Processes (6.4) scoped to software as one system element, with Implementation
+# (6.4.7, "fabricate, code, or otherwise realize a system element") nested into the pipeline a
+# dev team actually edits and fills in. Code / Unit Test / Code Review / Build (CI) are a
+# common pipeline shape, not 15288 clause items — same "activities inside one process, not
+# separate processes" framing as the other templates' nested/branch detail.
+
+_SOFTWARE_TEMPLATE_NAME = "Template: Software Engineering (ISO/IEC/IEEE 15288)"
+
+_SOFTWARE_DESCRIPTION = (
+    "A software engineering value stream anchored to ISO/IEC/IEEE 15288:2015 — the Technical "
+    "Processes (6.4) scoped to software as one system element. Design Definition (6.4.5) is "
+    "the software architecture and detailed design; Integration (6.4.8) and Verification "
+    "(6.4.9) are the software integration and qualification test steps.\n\n"
+    "\"Implementation process (Clause 6.4.7)\" is where the coding happens — expand it and "
+    "edit the pipeline to match your team's. Code, Unit Test, Code Review, and Build (CI) are "
+    "a common pipeline shape, not 15288 clause items. Durations are 0: this is the tool your "
+    "team fills in, not an illustrative story."
+)
+
+
+def _seed_software_engineering_template():
+    m = Map(
+        name=_SOFTWARE_TEMPLATE_NAME,
+        description=_SOFTWARE_DESCRIPTION,
+        lifecycle="featured",
+        is_template=True,
+        template_category=CATEGORY_DEVELOPMENT,
+    )
+    db.session.add(m)
+    db.session.flush()
+
+    def S(name, team, x, desc):
+        s = Step(map_id=m.id, name=name, owning_team=team, description=desc, pos_x=x, pos_y=200)
+        db.session.add(s)
+        return s
+
+    design = S(
+        "Design Definition process (Clause 6.4.5) — Software Design", "Software Engineering",
+        40, "Software architecture and detailed design.",
+    )
+    impl = S(
+        "Implementation process (Clause 6.4.7) — Software", "Development Team",
+        340, "Where the coding happens. Expand and edit the pipeline to match your team's.",
+    )
+    integ = S(
+        "Integration process (Clause 6.4.8) — Software Integration", "Development Team",
+        640, "Integrate the built components into the software element.",
+    )
+    verify = S(
+        "Verification process (Clause 6.4.9) — Software Qualification Test", "Test Engineering",
+        940, "Confirm the integrated software meets its specified requirements.",
+    )
+    db.session.flush()
+
+    for a, b in ((design, impl), (impl, integ), (integ, verify)):
+        db.session.add(Edge(map_id=m.id, source_step_id=a.id, target_step_id=b.id, wait_time_sec=0))
+
+    # ── "Implementation" / coding pipeline sub-process ──
+    pipeline_map = Map(
+        name="Software Pipeline — sub-process",
+        description=f'Sub-process for "{impl.name}" in {m.name}.',
+    )
+    db.session.add(pipeline_map)
+    db.session.flush()
+    impl.child_map_id = pipeline_map.id
+
+    step_defs = [
+        ("Code", "Development Team", "Implement the design in code."),
+        ("Unit Test", "Development Team", "Author and run unit tests against the new/changed code."),
+        ("Code Review", "Development Team", "Peer review before merge."),
+        ("Build (CI)", "DevOps / Build Engineering", "Automated build and CI checks on merge."),
+    ]
+    pipeline_steps = []
+    for i, (name, team, desc) in enumerate(step_defs):
+        s = Step(
+            map_id=pipeline_map.id, name=name, owning_team=team, description=desc,
+            pos_x=40 + i * 260, pos_y=200,
+        )
+        db.session.add(s)
+        pipeline_steps.append(s)
+    db.session.flush()
+    for a, b in zip(pipeline_steps, pipeline_steps[1:]):
+        db.session.add(
+            Edge(map_id=pipeline_map.id, source_step_id=a.id, target_step_id=b.id, wait_time_sec=0)
+        )
+
+
 def _ensure_template(name: str, category: str, builder) -> None:
     """Create the named featured template if missing; if it already exists, backfill its
     category onto the taxonomy's current value (e.g. after a rename) without touching anything
@@ -701,6 +791,9 @@ def seed_templates_if_missing():
     _ensure_template(_MFG_ROUTING_TEMPLATE_NAME, _15288_MFG, _seed_manufacturing_routing_template)
     _ensure_template(
         _PROCUREMENT_TEMPLATE_NAME, CATEGORY_ENTERPRISE_SUPPORT, _seed_procurement_template
+    )
+    _ensure_template(
+        _SOFTWARE_TEMPLATE_NAME, CATEGORY_DEVELOPMENT, _seed_software_engineering_template
     )
     db.session.commit()
 

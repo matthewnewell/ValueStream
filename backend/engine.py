@@ -193,8 +193,26 @@ def _representative_critical_path(
     if not critical:
         return []
 
-    # Start from the zero-slack node with the latest earliest_finish (a critical sink).
-    current = max(critical, key=lambda n: (cpm["earliest_finish"][n], n))
+    # Start from a critical *sink* — a critical node with no critical successor — not just
+    # whichever critical node has the largest (earliest_finish, id) tuple. Those coincide in
+    # the ordinary case (a true sink naturally has the latest earliest_finish), but when every
+    # step and wait on a map is 0 — every path finishes at the same instant, so every step is
+    # "critical" with earliest_finish 0 — the old id-based tiebreak could crown a node in the
+    # MIDDLE of the chain as "current", and since the walk below only ever backtracks toward
+    # predecessors, everything after that arbitrary point silently never made it into the path
+    # (a 4-step all-zero template rendered as a single box). Restricting the starting
+    # candidates to actual sinks fixes that while leaving the ordinary, non-degenerate case —
+    # where there's one unmistakable sink — unchanged.
+    has_critical_succ: set[str] = set()
+    for n in critical:
+        for u, e in cpm["preds"].get(n, []):
+            if (
+                cpm["slack"].get(u, 1) < _EPS
+                and abs(cpm["earliest_finish"][u] + e["wait_time_sec"] - cpm["earliest_start"][n]) < _EPS
+            ):
+                has_critical_succ.add(u)
+    sinks = [n for n in critical if n not in has_critical_succ] or critical
+    current = max(sinks, key=lambda n: (cpm["earliest_finish"][n], n))
     path = [current]
     seen = {current}
     while True:

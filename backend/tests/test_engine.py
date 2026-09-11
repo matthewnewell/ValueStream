@@ -208,6 +208,24 @@ def test_critical_path_step_and_edge_ids_are_ordered():
     assert m["critical_path_edge_ids"] == ["e1", "e2"]
 
 
+def test_critical_path_walks_the_full_chain_when_everything_is_zero():
+    # A four-step chain where every step and every wait is 0 (a fresh scaffold before anyone
+    # has filled in durations — e.g. a brand-new featured template). Every node ties at
+    # earliest_finish 0, so the old id-based tiebreak for picking the walk's starting node
+    # could crown a node in the MIDDLE of the chain as the "sink" and then only backtrack from
+    # there, silently dropping everything downstream — a 4-step chain rendered as one box.
+    # Regardless of the (arbitrary) node ids, the representative path must cover all 4 steps.
+    steps = [step(i, i) for i in ("z9", "a1", "m5", "b2")]
+    edges = [
+        edge("e1", "z9", "a1"),
+        edge("e2", "a1", "m5"),
+        edge("e3", "m5", "b2"),
+    ]
+    m = compute_metrics(steps, edges)
+    assert m["critical_path_step_ids"] == ["z9", "a1", "m5", "b2"]
+    assert m["critical_path_edge_ids"] == ["e1", "e2", "e3"]
+
+
 # ── Wait categorization (internal/external) and slip amplification ─────────────────────────
 
 
