@@ -55,6 +55,21 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* When a section title carries an InfoPopover, the head wrapper takes the border/spacing and
+   the title itself goes plain so the "?" sits on the same baseline. */
+.library-section__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.library-section__head .library-section__title {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .library-section__empty {
   margin: 0;
   font-size: 13px;

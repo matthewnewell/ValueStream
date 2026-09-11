@@ -165,7 +165,22 @@ def _build_sample_map() -> Map:
 #   - Every non-spine branch can be deleted whole without disconnecting the flow (the spine
 #     keeps direct Architecture->Design and Design->Implementation edges).
 
-_15288_PROGRAM = "Program Value Stream"
+# ── Value-stream category taxonomy ──────────────────────────────────────────────────────────
+#
+# How a featured template is classified in the library (Map.template_category) — a tag to help
+# someone find the altitude that fits their pain point, not a hierarchy to descend through to
+# reach a template. A project cloning for one specific problem (manufacturing, say) reaches for
+# a narrow template directly rather than cloning the whole program and drilling down to find it,
+# so Whole Program templates and narrow single-purpose ones are peers in the library, not parent
+# and child. The three narrow categories classify by the kind of "unit" moving through the
+# stream; Whole Program is the escape hatch for a full-lifecycle flow that drills into whatever
+# phase matters instead of committing to one.
+CATEGORY_WHOLE_PROGRAM = "Whole Program"
+CATEGORY_ENTERPRISE_SUPPORT = "Enterprise Support"
+CATEGORY_DEVELOPMENT = "Development"
+CATEGORY_FULFILLMENT = "Fulfillment & Operational"
+
+_15288_PROGRAM = CATEGORY_WHOLE_PROGRAM
 _PROGRAM_TEMPLATE_NAME = "Template: Program Value Stream (ISO/IEC/IEEE 15288)"
 
 _RETIRED_TEMPLATE_NAMES = (
@@ -421,7 +436,7 @@ def _seed_program_value_stream_template():
 # story — it's the literal tool production support fills in with their actual routing and
 # actual times, so fabricated example numbers would just be noise to clear out first.
 
-_15288_MFG = "Manufacturing Routing"
+_15288_MFG = CATEGORY_DEVELOPMENT
 _MFG_ROUTING_TEMPLATE_NAME = "Template: Manufacturing Routing (ISO/IEC/IEEE 15288)"
 
 _MFG_ROUTING_DESCRIPTION = (
@@ -553,6 +568,17 @@ def _seed_manufacturing_routing_template():
         )
 
 
+def _ensure_template(name: str, category: str, builder) -> None:
+    """Create the named featured template if missing; if it already exists, backfill its
+    category onto the taxonomy's current value (e.g. after a rename) without touching anything
+    else about it — same drift-fixup spirit as ensure_sample_map below."""
+    existing = Map.query.filter_by(name=name).first()
+    if existing is None:
+        builder()
+    elif existing.template_category != category:
+        existing.template_category = category
+
+
 def seed_templates_if_missing():
     """Idempotent startup: ensure the featured templates exist, and retire the three
     superseded single-family scaffolds if an older DB still carries them. Keyed by name, so
@@ -561,10 +587,8 @@ def seed_templates_if_missing():
         stale = Map.query.filter_by(name=name).first()
         if stale is not None:
             _delete_map_tree(stale)
-    if not Map.query.filter_by(name=_PROGRAM_TEMPLATE_NAME).first():
-        _seed_program_value_stream_template()
-    if not Map.query.filter_by(name=_MFG_ROUTING_TEMPLATE_NAME).first():
-        _seed_manufacturing_routing_template()
+    _ensure_template(_PROGRAM_TEMPLATE_NAME, _15288_PROGRAM, _seed_program_value_stream_template)
+    _ensure_template(_MFG_ROUTING_TEMPLATE_NAME, _15288_MFG, _seed_manufacturing_routing_template)
     db.session.commit()
 
 

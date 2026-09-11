@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCloneFromLibrary, useMapLibrary } from '../api/hooks'
 import type { LibraryEntry } from '../api/types'
+import InfoPopover from '../components/InfoPopover'
 import './LibraryPage.css'
 
 /** The Map Library: featured 15288 scaffolds up top, then the growing list of maps published
@@ -54,7 +55,31 @@ export default function LibraryPage() {
         {/* ── Featured: org-issued generic scaffolds ── */}
         {featuredGroups.length > 0 && (
           <section className="library-section">
-            <h2 className="library-section__title">Featured — issued by the organization</h2>
+            <div className="library-section__head">
+              <h2 className="library-section__title">Featured — issued by the organization</h2>
+              <InfoPopover label="the value stream tags">
+                A tag names the kind of pain point a template fits — not a hierarchy to descend
+                through. Clone the narrow one that matches your problem directly, or the whole
+                program if you want the full picture and will drill into what matters.
+                <br />
+                <br />
+                <strong>Whole Program</strong> — a full-lifecycle flow, agreement through
+                transition. Drills into any phase as needed.
+                <br />
+                <br />
+                <strong>Enterprise Support</strong> — recurring business services that enable the
+                work without building the product directly. The unit moving through is a
+                contract, request, or compliance task.
+                <br />
+                <br />
+                <strong>Development</strong> — designing, building, and qualifying a capability,
+                system, or platform — including production and manufacturing execution.
+                <br />
+                <br />
+                <strong>Fulfillment &amp; Operational</strong> — recurring orders or requests
+                processed through an already-established capability.
+              </InfoPopover>
+            </div>
             {featuredGroups.map(([category, maps]) => (
               <div key={category} className="library-group">
                 <h3 className="library-group__title">{category}</h3>
