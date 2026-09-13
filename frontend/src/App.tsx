@@ -16,6 +16,10 @@ export default function App() {
       {/* Top-level pages share the persistent VsmNav. */}
       <Route element={<VsmLayout />}>
         <Route path="/" element={<SplashPage />} />
+        {/* Every sibling app's splash lives at /about (Value Stream predates that convention,
+            so its splash stayed at /) — alias it here so Conway's Depot's "Test Drive" link
+            (always `${url}/about`) lands somewhere real instead of an unmatched blank route. */}
+        <Route path="/about" element={<SplashPage />} />
         <Route path="/sample" element={<SamplePage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/library/:mapId" element={<LibraryEntryPage />} />
