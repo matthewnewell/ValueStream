@@ -14,6 +14,7 @@ from routes.edges import bp as edges_bp
 from routes.events import bp as events_bp
 from routes.maps import bp as maps_bp
 from routes.steps import bp as steps_bp
+from routes.summary import bp as summary_bp
 from seed import (
     ensure_sample_map,
     seed_if_empty,
@@ -35,6 +36,7 @@ def create_app():
     app.register_blueprint(edges_bp)
     app.register_blueprint(events_bp)
     app.register_blueprint(ai_bp)
+    app.register_blueprint(summary_bp)
 
     with app.app_context():
         seed_if_empty()
