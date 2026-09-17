@@ -7,6 +7,11 @@ interface MapChatPanelProps {
   mapId: string
   aiConfigured: boolean
   onCollapse: () => void
+  /** True when hosted inside MapLayout's shared Chat/Journal tab strip — the strip's own header
+   * already carries the title-equivalent (the active tab) and the collapse button, so this
+   * skips rendering its own duplicate header. Defaults false so the component still stands
+   * alone if ever used outside that strip. */
+  hideHeader?: boolean
 }
 
 const STARTER_PROMPTS = [
@@ -18,7 +23,7 @@ const STARTER_PROMPTS = [
 /** Conversation history is plain React state — nothing persisted to the backend or a
  * database. Refreshing the page or navigating away loses it. That's a deliberate v1 scope
  * decision (this is a working-session tool, not a permanent record), not an oversight. */
-export default function MapChatPanel({ mapId, aiConfigured, onCollapse }: MapChatPanelProps) {
+export default function MapChatPanel({ mapId, aiConfigured, onCollapse, hideHeader }: MapChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -56,13 +61,15 @@ export default function MapChatPanel({ mapId, aiConfigured, onCollapse }: MapCha
 
   if (!aiConfigured) {
     return (
-      <aside className="chat-panel chat-panel--empty">
-        <div className="chat-panel__header">
-          <h3 className="chat-panel__title">✨ Ask about this map</h3>
-          <button className="chat-panel__collapse" onClick={onCollapse} title="Collapse chat">
-            »
-          </button>
-        </div>
+      <aside className={`chat-panel chat-panel--empty${hideHeader ? ' chat-panel--embedded' : ''}`}>
+        {!hideHeader && (
+          <div className="chat-panel__header">
+            <h3 className="chat-panel__title">✨ Ask about this map</h3>
+            <button className="chat-panel__collapse" onClick={onCollapse} title="Collapse chat">
+              »
+            </button>
+          </div>
+        )}
         <div className="chat-panel__not-configured">
           AI is not configured for this instance. Set <code>AI_PROVIDER</code> to{' '}
           <code>claude</code> or <code>ollama</code> to talk through this value stream's
@@ -74,13 +81,15 @@ export default function MapChatPanel({ mapId, aiConfigured, onCollapse }: MapCha
   }
 
   return (
-    <aside className="chat-panel">
-      <div className="chat-panel__header">
-        <h3 className="chat-panel__title">✨ Ask about this map</h3>
-        <button className="chat-panel__collapse" onClick={onCollapse} title="Collapse chat">
-          »
-        </button>
-      </div>
+    <aside className={`chat-panel${hideHeader ? ' chat-panel--embedded' : ''}`}>
+      {!hideHeader && (
+        <div className="chat-panel__header">
+          <h3 className="chat-panel__title">✨ Ask about this map</h3>
+          <button className="chat-panel__collapse" onClick={onCollapse} title="Collapse chat">
+            »
+          </button>
+        </div>
+      )}
 
       <div className="chat-panel__messages" ref={listRef}>
         {messages.length === 0 && (

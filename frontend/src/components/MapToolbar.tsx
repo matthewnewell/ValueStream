@@ -4,7 +4,7 @@ import './MapToolbar.css'
 interface MapToolbarProps {
   mapId: string
   mapName: string
-  view: 'timeline' | 'node' | 'journal'
+  view: 'timeline' | 'node'
   /** Present only on the Node view, where the title doubles as a rename field. The Timeline
    * view's title is read-only — renaming happens where you edit everything else. */
   onRenameMap?: (name: string) => void
@@ -12,7 +12,7 @@ interface MapToolbarProps {
    * the Timeline/Node toggle. */
   actions?: React.ReactNode
   /** A published snapshot or a featured scaffold: frozen — a "Read-only" pill sits alongside
-   * the Timeline/Node/Journal toggle (still previewable, just not editable), and a "← Back to
+   * the Timeline/Node toggle (still previewable, just not editable), and a "← Back to
    * template" link appears above the title, back to where it was cloned from. */
   readOnly?: boolean
   /** The sample map: editable like any working map, plus a "↺ Reset" button that restores it
@@ -21,10 +21,10 @@ interface MapToolbarProps {
 }
 
 /** Map-scoped bar under the persistent VsmNav: the map's name (an editable field on the Node
- * view) on the left, and on the right the toggle between the Timeline view (analysis + journal)
- * and the Node view (the graph) — replaced by a plain "Read-only" pill on a frozen library
- * map. App-level navigation (home, Sample Map, Map Library, Admin) lives in VsmNav above;
- * nested sub-process maps get a Breadcrumb between the two. */
+ * view) on the left, and on the right the toggle between the Timeline view (analysis) and the
+ * Node view (the graph) — replaced by a plain "Read-only" pill on a frozen library map.
+ * App-level navigation (home, Sample Map, Map Library, Admin) lives in VsmNav above; nested
+ * sub-process maps get a Breadcrumb between the two. */
 export default function MapToolbar({
   mapId,
   mapName,
@@ -92,14 +92,6 @@ export default function MapToolbar({
             onClick={() => navigate(`/maps/${mapId}`)}
           >
             Node
-          </button>
-          <button
-            role="tab"
-            aria-selected={view === 'journal'}
-            className={`map-toolbar__view-btn ${view === 'journal' ? 'map-toolbar__view-btn--active' : ''}`}
-            onClick={() => navigate(`/maps/${mapId}/journal`)}
-          >
-            Journal
           </button>
         </div>
       </div>

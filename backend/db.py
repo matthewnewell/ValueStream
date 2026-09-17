@@ -94,6 +94,19 @@ def _run_migrations(app):
                     conn.execute(text(alter_sql))
 
 
+def _drop_dead_tables(app):
+    """The one genuinely destructive migration here, unlike everything above — same exception
+    Conway's Depot's own db.py documents for a truly dead column. `map_event` backed this app's
+    own native per-map journal (auto-captured field changes + manual notes), removed in favor
+    of Conway's Depot's cross-app Journal widget — no code writes or reads this table anymore,
+    and the Depot was never told to merge its data in. SQLite (3.35+) can drop a table directly."""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        if "map_event" in set(inspector.get_table_names()):
+            with db.engine.begin() as conn:
+                conn.execute(text("DROP TABLE map_event"))
+
+
 def init_db(app):
     db_path = get_db_path(app)
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
@@ -107,3 +120,4 @@ def init_db(app):
 
     _run_migrations(app)
     _backfill(app)
+    _drop_dead_tables(app)

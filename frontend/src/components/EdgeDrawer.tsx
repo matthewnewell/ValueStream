@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Edge, MapMetrics, WaitKind } from '../api/types'
 import { useDeleteEdge, useUpdateEdge } from '../api/hooks'
 import { formatDuration } from '../lib/duration'
-import { getAuthor, setAuthor } from '../lib/journal'
 import DurationInput from './DurationInput'
-import Journal from './Journal'
 import './EdgeDrawer.css'
 
 interface EdgeDrawerProps {
@@ -14,8 +12,8 @@ interface EdgeDrawerProps {
   targetStepName: string
   metrics?: MapMetrics
   onClose: () => void
-  /** false on a read-only (featured/published) map: read mode only, no "Edit" affordance and
-   * no journal composer — the backend would 403 the write anyway. Defaults true. */
+  /** false on a read-only (featured/published) map: read mode only, no "Edit" affordance —
+   * the backend would 403 the write anyway. Defaults true. */
   editable?: boolean
 }
 
@@ -39,8 +37,6 @@ export default function EdgeDrawer({
   const [label, setLabel] = useState(edge.label ?? '')
   const [waitKind, setWaitKind] = useState<WaitKind>(edge.wait_kind)
   const [reworkRate, setReworkRate] = useState<number | null>(edge.rework_rate)
-  const [why, setWhy] = useState('')
-  const [name, setName] = useState(getAuthor())
 
   const updateEdge = useUpdateEdge(mapId)
   const deleteEdge = useDeleteEdge(mapId)
@@ -59,7 +55,6 @@ export default function EdgeDrawer({
     setLabel(edge.label ?? '')
     setWaitKind(edge.wait_kind)
     setReworkRate(edge.rework_rate)
-    setWhy('')
     setMode('read')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edge.id])
@@ -72,7 +67,6 @@ export default function EdgeDrawer({
     reworkRate !== edge.rework_rate
 
   function handleSave() {
-    if (name.trim() && name.trim() !== getAuthor()) setAuthor(name)
     updateEdge.mutate(
       {
         edgeId: edge.id,
@@ -82,8 +76,6 @@ export default function EdgeDrawer({
           label: label.trim() || null,
           wait_kind: kind === 'rework' ? null : waitKind,
           rework_rate: kind === 'rework' ? reworkRate : null,
-          author: (name.trim() || getAuthor()) || undefined,
-          journal_note: why.trim() || undefined,
         },
       },
       {
@@ -93,7 +85,6 @@ export default function EdgeDrawer({
           setLabel(updated.label ?? '')
           setWaitKind(updated.wait_kind)
           setReworkRate(updated.rework_rate)
-          setWhy('')
           setMode('read')
         },
       },
@@ -190,15 +181,6 @@ export default function EdgeDrawer({
             </button>
           </div>
         )}
-
-        <div className="edge-drawer__journal">
-          <Journal
-            mapId={mapId}
-            target={{ type: 'edge', id: edge.id, name: title }}
-            editable={editable}
-            compact
-          />
-        </div>
       </aside>
     )
   }
@@ -308,27 +290,6 @@ export default function EdgeDrawer({
         />
       </label>
 
-      <div className="edge-drawer__why">
-        <span className="edge-drawer__field-label">
-          Why this change?{' '}
-          <span className="edge-drawer__why-hint">optional — goes in the journal</span>
-        </span>
-        <textarea
-          rows={2}
-          value={why}
-          onChange={(e) => setWhy(e.target.value)}
-          placeholder="e.g. foundry pushed the batch a week"
-        />
-        {!getAuthor() && (
-          <input
-            className="edge-drawer__label-input"
-            placeholder="your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        )}
-      </div>
-
       <div className="edge-drawer__footer">
         <button className="edge-drawer__delete-btn" onClick={handleDelete}>
           Delete
@@ -340,7 +301,6 @@ export default function EdgeDrawer({
               setWaitSec(edge.wait_time_sec)
               setLabel(edge.label ?? '')
               setWaitKind(edge.wait_kind)
-              setWhy('')
               setMode('read')
             }}
           >

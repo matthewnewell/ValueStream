@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Step, StepMetric } from '../api/types'
 import { useCollapseStep, useDeleteStep, useUpdateStep } from '../api/hooks'
 import { formatDuration } from '../lib/duration'
-import { getAuthor, setAuthor } from '../lib/journal'
 import DurationInput from './DurationInput'
-import Journal from './Journal'
 import './StepDrawer.css'
 
 interface StepDrawerProps {
@@ -14,8 +12,8 @@ interface StepDrawerProps {
   onClose: () => void
   /** Open (or create-then-open) this step's sub-process map. */
   onExpand: () => void
-  /** false on a read-only (featured/published) map: read mode only, no "Edit" affordance and
-   * no journal composer — the backend would 403 the write anyway. Defaults true. */
+  /** false on a read-only (featured/published) map: read mode only, no "Edit" affordance —
+   * the backend would 403 the write anyway. Defaults true. */
   editable?: boolean
 }
 
@@ -62,8 +60,6 @@ export default function StepDrawer({
 }: StepDrawerProps) {
   const [mode, setMode] = useState<'read' | 'edit'>('read')
   const [form, setForm] = useState<FormState>(() => toForm(step))
-  const [why, setWhy] = useState('')
-  const [name, setName] = useState(getAuthor())
 
   const updateStep = useUpdateStep(mapId)
   const deleteStep = useDeleteStep(mapId)
@@ -75,7 +71,6 @@ export default function StepDrawer({
   // edit is never silently reset. The post-save reset is handled explicitly in handleSave.
   useEffect(() => {
     setForm(toForm(step))
-    setWhy('')
     setMode('read')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id])
@@ -83,7 +78,6 @@ export default function StepDrawer({
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(step))
 
   function handleSave() {
-    if (name.trim() && name.trim() !== getAuthor()) setAuthor(name)
     updateStep.mutate(
       {
         stepId: step.id,
@@ -96,14 +90,11 @@ export default function StepDrawer({
           operators: form.operators,
           machines: form.machines,
           pct_complete_accurate: form.pct_complete_accurate,
-          author: (name.trim() || getAuthor()) || undefined,
-          journal_note: why.trim() || undefined,
         },
       },
       {
         onSuccess: (updated) => {
           setForm(toForm(updated))
-          setWhy('')
           setMode('read')
         },
       },
@@ -226,15 +217,6 @@ export default function StepDrawer({
             </button>
           </div>
         )}
-
-        <div className="step-drawer__section step-drawer__journal">
-          <Journal
-            mapId={mapId}
-            target={{ type: 'step', id: step.id, name: step.name }}
-            editable={editable}
-            compact
-          />
-        </div>
       </aside>
     )
   }
@@ -404,26 +386,6 @@ export default function StepDrawer({
         </label>
       </div>
 
-      <div className="step-drawer__why">
-        <label className="step-drawer__field-label">
-          Why this change? <span>optional — goes in the journal</span>
-        </label>
-        <textarea
-          rows={2}
-          value={why}
-          onChange={(e) => setWhy(e.target.value)}
-          placeholder="e.g. added a second shift to hit the ship date"
-        />
-        {!getAuthor() && (
-          <input
-            className="step-drawer__why-name"
-            placeholder="your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        )}
-      </div>
-
       <div className="step-drawer__footer">
         <button className="step-drawer__delete-btn" onClick={handleDelete}>
           Delete
@@ -433,7 +395,6 @@ export default function StepDrawer({
             className="step-drawer__cancel-btn"
             onClick={() => {
               setForm(toForm(step))
-              setWhy('')
               setMode('read')
             }}
           >

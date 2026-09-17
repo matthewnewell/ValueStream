@@ -257,35 +257,3 @@
   cursor: default;
 }
 
-.edge-drawer__why {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  background: var(--color-accent-soft);
-  border-radius: var(--radius-sm);
-}
-
-.edge-drawer__why textarea {
-  width: 100%;
-  resize: vertical;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  font: inherit;
-  font-size: 13px;
-  box-sizing: border-box;
-}
-
-.edge-drawer__why-hint {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--color-text-faint);
-}
-
-.edge-drawer__journal {
-  margin-top: 4px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 12px;
-}

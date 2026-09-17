@@ -366,7 +366,7 @@ function clip(text: string, w: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`
 }
 
-/** A box's raw name is the full, precise name shown everywhere else (drawer, journal, the
+/** A box's raw name is the full, precise name shown everywhere else (drawer, the
  * focus list) — often "Acquisition process — Solicit & Select Supplier (Clause 6.1.1)", where
  * the leading "<generic process> — " repeats across a whole family of boxes and the trailing
  * "(Clause …)" tells you nothing at a glance. Pull out just the distinctive middle for the

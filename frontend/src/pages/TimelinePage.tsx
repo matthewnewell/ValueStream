@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   useExpandStep,
   useMap,
@@ -169,22 +169,6 @@ export default function TimelinePage() {
     setSelEdgeId(null)
     setShowMinor(false)
   }, [mapId])
-
-  // The Journal view links back here as /maps/:id/timeline?open=<step or edge id> — resolve it,
-  // open that drawer, then drop the param so a refresh doesn't keep re-opening it.
-  const [searchParams, setSearchParams] = useSearchParams()
-  useEffect(() => {
-    const open = searchParams.get('open')
-    if (!open || !map) return
-    if (map.steps.some((s) => s.id === open)) {
-      setSelEdgeId(null)
-      setSelStepId(open)
-    } else if (map.edges.some((e) => e.id === open)) {
-      setSelStepId(null)
-      setSelEdgeId(open)
-    }
-    setSearchParams({}, { replace: true })
-  }, [searchParams, map, setSearchParams])
 
   if (!mapId) return null
   if (mapLoading || metricsLoading || !map || !metrics) {

@@ -2,7 +2,7 @@ import os
 
 from flask import Blueprint, jsonify, request
 
-from models import Map, MapEvent
+from models import Map
 from routes.maps import compute_metrics_recursive
 
 bp = Blueprint("summary", __name__, url_prefix="/api")
@@ -61,51 +61,3 @@ def summary():
         "status": status,
         "href": f"{FRONTEND_BASE_URL}/maps/{m.id}/timeline",
     })
-
-
-def _event_summary(e: MapEvent) -> str:
-    """One readable line per MapEvent — this app decides the wording, the Depot never parses
-    it back apart (same opaque-rendering rule as the summary tile's headline/label)."""
-    who = f"{e.target_name}: " if e.target_name else ""
-    if e.kind == "change":
-        line = f"{who}{e.field} changed from “{e.old_value}” to “{e.new_value}”"
-        if e.note:
-            line += f" — {e.note}"
-    else:
-        line = f"{who}{e.note or ''}"
-    return line
-
-
-@bp.get("/journal")
-def journal():
-    """The Launchpad's cross-app journal contract: a project-level aggregator on Conway's Depot
-    calls this on every connected app and merges the results into one timeline (see that
-    proxy's own route for the full rationale — same `project_id` translation as /summary
-    above). Each entry is pre-rendered to one human-readable `summary` string; this app owns
-    the wording, same as it owns headline/label on the summary tile. No match is a normal
-    empty state, not an error."""
-    map_id = request.args.get("project_id")
-    m = Map.query.get(map_id) if map_id else None
-    if m is None:
-        return jsonify({"entries": []})
-
-    events = (
-        MapEvent.query.filter_by(map_id=m.id)
-        .order_by(MapEvent.created_at.desc())
-        .limit(200)
-        .all()
-    )
-    entries = [
-        {
-            "id": e.id,
-            "timestamp": e.created_at.isoformat(),
-            "author": e.author,
-            "summary": _event_summary(e),
-            "href": (
-                f"{FRONTEND_BASE_URL}/maps/{m.id}/timeline?open={e.target_id}"
-                if e.target_id else f"{FRONTEND_BASE_URL}/maps/{m.id}/journal"
-            ),
-        }
-        for e in events
-    ]
-    return jsonify({"entries": entries})

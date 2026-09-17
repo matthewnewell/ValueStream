@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request
 
-import journal
 from db import db
 from models import Edge, Map, Step
 
@@ -71,7 +70,6 @@ def update_edge(edge_id):
     if err := _validate_edge_body(body):
         return jsonify({"error": err}), 400
 
-    before = {f: getattr(edge, f) for f in journal.EDGE_FIELDS}
     if "wait_time_sec" in body:
         edge.wait_time_sec = body["wait_time_sec"]
     if "label" in body:
@@ -83,15 +81,6 @@ def update_edge(edge_id):
     if "rework_rate" in body:
         r = body["rework_rate"]
         edge.rework_rate = None if r is None else max(0.0, min(100.0, float(r)))
-
-    src = Step.query.get(edge.source_step_id)
-    tgt = Step.query.get(edge.target_step_id)
-    edge_name = f"{src.name if src else '?'} → {tgt.name if tgt else '?'}"
-    after = {f: getattr(edge, f) for f in journal.EDGE_FIELDS}
-    journal.record_changes(
-        edge.map_id, "edge", edge.id, edge_name, before, after, journal.EDGE_FIELDS,
-        author=body.get("author"), note=body.get("journal_note"),
-    )
 
     db.session.commit()
     return jsonify(edge.to_dict())

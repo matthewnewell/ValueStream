@@ -11,7 +11,6 @@ from flask import Flask, send_from_directory
 from db import init_db
 from routes.ai import bp as ai_bp
 from routes.edges import bp as edges_bp
-from routes.events import bp as events_bp
 from routes.maps import bp as maps_bp
 from routes.steps import bp as steps_bp
 from routes.summary import bp as summary_bp
@@ -34,7 +33,6 @@ def create_app():
     app.register_blueprint(maps_bp)
     app.register_blueprint(steps_bp)
     app.register_blueprint(edges_bp)
-    app.register_blueprint(events_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(summary_bp)
 

@@ -13,6 +13,18 @@
   padding: 16px;
 }
 
+/* Hosted inside MapLayout's shared Chat/Journal tab strip — the strip's own aside already
+   carries the width/border/background, so this just fills the strip's body instead of
+   duplicating chrome. flex/min-height (not height:100%) since the body is a flex column now,
+   not the flex row .chat-panel was originally a direct child of. */
+.chat-panel--embedded {
+  width: auto;
+  height: auto;
+  flex: 1;
+  min-height: 0;
+  border-left: none;
+}
+
 .chat-panel__header {
   display: flex;
   align-items: center;

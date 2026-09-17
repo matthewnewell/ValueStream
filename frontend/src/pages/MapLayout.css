@@ -9,6 +9,7 @@
   flex: 1;
   display: flex;
   min-height: 0;
+  position: relative;
 }
 
 .map-layout__main {
@@ -19,25 +20,79 @@
   min-height: 0;
 }
 
-.map-layout__chat-tab {
-  flex-shrink: 0;
+/* The tab rail is always rendered, pinned to the row's bottom-right — real file-drawer tabs,
+   present whether the drawer is open or shut. Closed: right:0, resting flush against the
+   viewport edge, each tab poking its own width into the main content (the look approved for
+   the collapsed state). Open: the rail slides left to rest just past the panel's edge (still
+   poking a few px into main content, same resting look) — and the ACTIVE tab pulls out an
+   extra notch via translateX, overlapping main content further still, the way sliding a folder
+   forward out of a drawer makes its tab jut out past the others. Clicking the open tab again
+   pushes it back in (MapLayout.tsx toggles instead of a separate collapse button). */
+.map-layout__tab-rail {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+  transition: right 0.15s ease;
+}
+
+.map-layout__row--panel-open .map-layout__tab-rail {
+  right: 380px; /* flush against the open panel's edge — same "rest flush against whatever's in
+                   front of the drawer" rule as right:0 when closed (flush against the viewport
+                   edge); only the active tab's translateX pulls past that line. */
+}
+
+.map-layout__tab-rail-btn {
   width: 40px;
-  border: none;
-  border-left: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 700;
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  padding: 16px 0;
+  padding: 14px 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  box-shadow: -2px 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.map-layout__chat-tab:hover {
+.map-layout__tab-rail-btn:hover {
   background: var(--color-accent-soft);
   color: var(--color-accent);
+}
+
+.map-layout__tab-rail-btn--active {
+  transform: translateX(-14px);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: -4px 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* The open panel itself — Chat and Journal share this exact column instead of each getting
+   their own independent drawer. No header of its own: the tab rail above is the only chrome. */
+.side-panel {
+  width: 380px;
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.side-panel__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
