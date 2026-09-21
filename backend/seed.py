@@ -71,7 +71,7 @@ def _build_sample_map() -> Map:
         # Matches the demo project the sibling apps (Conway's Depot, Launchpad) also carry —
         # same project, each app's own copy of the label, tied together by convention.
         portfolio="Industrial Programs",
-        project="Demo: Bracket Assembly Program",
+        project="Bracket Assembly Program",
     )
     db.session.add(m)
     db.session.flush()
@@ -805,7 +805,7 @@ def ensure_sample_map():
     "↺ Reset" and this are the two ways back to a known state)."""
     m = (
         Map.query.filter_by(lifecycle="sample").first()
-        or Map.query.filter(Map.name.like("Demo: Bracket Assembly%")).first()
+        or Map.query.filter(Map.name.like("Bracket Assembly%")).first()
     )
     if m is None:
         _build_sample_map()
