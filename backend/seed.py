@@ -71,7 +71,7 @@ def _build_sample_map() -> Map:
         # Matches the demo project the sibling apps (Conway's Depot, Launchpad) also carry —
         # same project, each app's own copy of the label, tied together by convention.
         portfolio="Industrial Programs",
-        project="Bracket Assembly Program",
+        project="Bracket Assembly Project",
     )
     db.session.add(m)
     db.session.flush()

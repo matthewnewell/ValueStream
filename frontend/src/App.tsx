@@ -1,4 +1,3 @@
-import { DepotBackBar } from '@conways/drawer'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import VsmLayout from './pages/VsmLayout'
 import SplashPage from './pages/SplashPage'
@@ -13,7 +12,6 @@ import TimelinePage from './pages/TimelinePage'
 export default function App() {
   return (
     <>
-      <DepotBackBar />
       <Routes>
       {/* Top-level pages share the persistent VsmNav. */}
       <Route element={<VsmLayout />}>
